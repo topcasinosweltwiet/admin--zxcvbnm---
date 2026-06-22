@@ -2514,14 +2514,25 @@
     var err=document.getElementById('wd-sec-err');if(err)err.style.display='none';
     if(!title){if(err){err.textContent='Title required.';err.style.display='block';}return;}
     var btn=document.getElementById('wd-sec-save');
-    _wdSaving=true;btn.disabled=true;btn.textContent='Saving...';
-    var data={title:title,icon:icon,description:desc,fields:_wdFields.filter(function(f){return f.label;}),active:true,createdAt:new Date().toISOString()};
-    fetch(FB+'/withdrawalSections.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-      .then(function(){
-        _wdSaving=false;btn.disabled=false;btn.textContent='Add Option';
-        ['wd-sec-title','wd-sec-icon','wd-sec-desc'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
-        _wdFields=[];renderWdFlds();loadWdList();
-      }).catch(function(e){_wdSaving=false;btn.disabled=false;btn.textContent='Add Option';if(err){err.textContent='Error: '+e.message;err.style.display='block';}});
+    _wdSaving=true;btn.disabled=true;btn.textContent='Checking...';
+    // Check for duplicate title first
+    fbGet('/withdrawalSections').then(function(existing){
+      if(existing){
+        var dup=Object.values(existing).find(function(s){return(s.title||'').toLowerCase()===title.toLowerCase();});
+        if(dup){
+          _wdSaving=false;btn.disabled=false;btn.textContent='Add Option';
+          if(err){err.textContent='Option "'+title+'" already exists!';err.style.display='block';}
+          return Promise.resolve(null);
+        }
+      }
+      var data={title:title,icon:icon,description:desc,fields:_wdFields.filter(function(f){return f.label;}),active:true,createdAt:new Date().toISOString()};
+      return fetch(FB+'/withdrawalSections.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    }).then(function(res){
+      if(!res)return;
+      _wdSaving=false;btn.disabled=false;btn.textContent='Add Option';
+      ['wd-sec-title','wd-sec-icon','wd-sec-desc'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+      _wdFields=[];renderWdFlds();loadWdList();
+    }).catch(function(e){_wdSaving=false;btn.disabled=false;btn.textContent='Add Option';if(err){err.textContent='Error: '+e.message;err.style.display='block';}});
   }
 
   function loadWdList(){
@@ -2531,6 +2542,19 @@
     fbGet('/withdrawalSections').then(function(data){
       _wdLoading=false;
       if(!data||!Object.keys(data).length){w.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No options yet.</div>';return;}
+      // Auto-dedup: keep only LAST entry per title
+      var seen={}, toDelete=[];
+      Object.entries(data).forEach(function(e){
+        var t=(e[1].title||'').toLowerCase();
+        if(seen[t])toDelete.push(seen[t]);
+        seen[t]=e[0];
+      });
+      if(toDelete.length){
+        Promise.all(toDelete.map(function(k){
+          return fetch(FB+'/withdrawalSections/'+k+'.json',{method:'DELETE'});
+        })).then(function(){_wdLoading=false;loadWdList();});
+        return;
+      }
       w.innerHTML='';
       Object.entries(data).forEach(function(e){
         var key=e[0],sec=e[1];
