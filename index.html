@@ -1466,7 +1466,7 @@
       } else {
         html += '<button onclick="toggleWdBlock(\''+key+'\',true)" style="padding:9px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Block Withdrawal</button>';
       }
-      html += '<button onclick="deletePlayer(\''+key+'\',\''+(p.username||'')+'\');document.getElementById(\'modal-player-detail\').classList.remove(\'open\');" style="padding:9px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🗑 Delete Account</button>';
+      html += '<button class="pd-del-btn" data-key="'+key+'" data-name="'+(p.username||key)+'" style="padding:9px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Delete Account</button>';
       html += '</div>';
 
       // ── Deposits ──
@@ -1551,14 +1551,21 @@
       html += '</div>';
 
       body.innerHTML = html;
-      // Wire wd-perm buttons via event delegation (avoids onclick quote issues)
+      // Wire wd-perm buttons
       body.querySelectorAll('.wd-perm-btn').forEach(function(btn){
         btn.addEventListener('click',function(){
           var row=btn.closest('.wd-perm-row');
+          if(!row)return;
           var sk=row.dataset.sk, pkey=row.dataset.pkey, action=btn.dataset.action;
           window.setWdPerm(pkey,sk,action);
         });
       });
+      // Wire delete button
+      var delBtn=body.querySelector('.pd-del-btn');
+      if(delBtn){delBtn.addEventListener('click',function(){
+        deletePlayer(delBtn.dataset.key, delBtn.dataset.name);
+        document.getElementById('modal-player-detail').classList.remove('open');
+      });}
     }).catch(function(e){body.innerHTML='<div style="color:#e74c3c;">Error: '+e.message+'</div>';});
   }
 
@@ -2325,54 +2332,55 @@
     if (dd && !e.target.closest('.search-wrap')) dd.classList.remove('open');
 
   // ── DEPOSIT SECTIONS ──
-  var depSecOptions = [], depSecLinks = [], depSaveListenerAdded = false;
+  var depSecOptions = [], depSecLinks = [];
 
-  function openDepSections() {
-    document.getElementById('modal-dep-sections').classList.add('open');
-    loadDepSectionsList();
-    if(!depSaveListenerAdded) {
-      depSaveListenerAdded = true;
-      document.getElementById('dep-sec-save').addEventListener('click', saveDepSection);
-    }
-  }
+  // Wire save button ONCE at init
+  document.getElementById('dep-sec-save').addEventListener('click', saveDepSection);
 
   window.addDepOption = function() { depSecOptions.push({label:'',sub:'',address:''}); renderDepOptions(); };
   window.addDepLink = function() { depSecLinks.push({label:'',url:'',icon:'',color:''}); renderDepLinks(); };
 
+  function openDepSections() {
+    document.getElementById('modal-dep-sections').classList.add('open');
+    depSecOptions=[]; depSecLinks=[];
+    renderDepOptions(); renderDepLinks();
+    ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr','dep-sec-proof-label'].forEach(function(id){
+      var el=document.getElementById(id); if(el)el.value='';
+    });
+    loadDepSectionsList();
+  }
+
   function renderDepOptions() {
-    var wrap = document.getElementById('dep-sec-options'); wrap.innerHTML='';
+    var wrap = document.getElementById('dep-sec-options'); if(!wrap)return; wrap.innerHTML='';
     depSecOptions.forEach(function(opt,i) {
       var row=document.createElement('div');
       row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;';
-      ['Label','Sub (network)','Address/Account'].forEach(function(ph,fi) {
-        var inp=document.createElement('input');
-        inp.placeholder=ph; inp.value=Object.values(opt)[fi]||'';
+      [['Label','label'],['Network','sub'],['Address/Account','address']].forEach(function(pair){
+        var inp=document.createElement('input'); inp.placeholder=pair[0]; inp.value=opt[pair[1]]||'';
         inp.style.cssText='padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;';
-        var keys=['label','sub','address'];
-        inp.addEventListener('input',function(){depSecOptions[i][keys[fi]]=this.value;});
+        inp.addEventListener('input',(function(p){return function(){opt[p]=this.value;};})(pair[1]));
         row.appendChild(inp);
       });
-      var del=document.createElement('button');
-      del.textContent='×'; del.style.cssText='padding:6px 8px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:12px;';
-      del.addEventListener('click',function(){depSecOptions.splice(i,1);renderDepOptions();});
+      var del=document.createElement('button'); del.textContent='x';
+      del.style.cssText='padding:6px 10px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;';
+      del.addEventListener('click',(function(idx){return function(){depSecOptions.splice(idx,1);renderDepOptions();};})(i));
       row.appendChild(del); wrap.appendChild(row);
     });
   }
 
   function renderDepLinks() {
-    var wrap=document.getElementById('dep-sec-links'); wrap.innerHTML='';
-    depSecLinks.forEach(function(lnk,i) {
-      var row=document.createElement('div');
-      row.style.cssText='display:grid;grid-template-columns:1fr 1fr 40px 60px auto;gap:6px;margin-bottom:6px;';
-      [['Label','label'],['URL','url'],['Icon','icon'],['Color','color']].forEach(function(pair,fi){
+    var wrap=document.getElementById('dep-sec-links'); if(!wrap)return; wrap.innerHTML='';
+    depSecLinks.forEach(function(lnk,i){
+      var row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:1fr 1fr 40px 60px auto;gap:6px;margin-bottom:6px;';
+      [['Label','label'],['URL','url'],['Icon','icon'],['Color','color']].forEach(function(pair){
         var inp=document.createElement('input'); inp.placeholder=pair[0]; inp.value=lnk[pair[1]]||'';
-        inp.style.cssText='padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;text-align:'+(fi>1?'center':'left')+';';
-        inp.addEventListener('input',function(){depSecLinks[i][pair[1]]=this.value;});
+        inp.style.cssText='padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;';
+        inp.addEventListener('input',(function(p){return function(){lnk[p]=this.value;};})(pair[1]));
         row.appendChild(inp);
       });
-      var del=document.createElement('button');
-      del.textContent='×'; del.style.cssText='padding:6px 8px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:12px;';
-      del.addEventListener('click',function(){depSecLinks.splice(i,1);renderDepLinks();});
+      var del=document.createElement('button'); del.textContent='x';
+      del.style.cssText='padding:6px 10px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;';
+      del.addEventListener('click',(function(idx){return function(){depSecLinks.splice(idx,1);renderDepLinks();};})(i));
       row.appendChild(del); wrap.appendChild(row);
     });
   }
@@ -2382,32 +2390,35 @@
     var icon=(document.getElementById('dep-sec-icon').value||'').trim()||'💰';
     var desc=(document.getElementById('dep-sec-desc').value||'').trim();
     var qr=(document.getElementById('dep-sec-qr').value||'').trim();
-    var proofLabel=(document.getElementById('dep-sec-proof-label').value||'').trim()||'Transaction ID / Proof';
-    var errEl=document.getElementById('dep-sec-err'); errEl.style.display='none';
-    if(!title){errEl.textContent='Title is required.';errEl.style.display='block';return;}
+    var proofLabel=(document.getElementById('dep-sec-proof-label').value||'').trim()||'Transaction ID';
+    var errEl=document.getElementById('dep-sec-err'); if(errEl)errEl.style.display='none';
+    if(!title){if(errEl){errEl.textContent='Title required.';errEl.style.display='block';}return;}
     var data={title:title,icon:icon,description:desc,qrImageUrl:qr,proofLabel:proofLabel,
-      options:depSecOptions.filter(function(o){return o.label;}),
+      options:depSecOptions.filter(function(o){return (o.label||'').trim();}),
       links:depSecLinks.filter(function(l){return l.label&&l.url;}),
       active:true,createdAt:new Date().toISOString()};
     var btn=document.getElementById('dep-sec-save'); btn.textContent='Saving...'; btn.disabled=true;
     fbPush('/depositSections',data).then(function(){
       btn.textContent='Add Section'; btn.disabled=false;
-      ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr','dep-sec-proof-label'].forEach(function(id){document.getElementById(id).value='';});
+      ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr','dep-sec-proof-label'].forEach(function(id){
+        var el=document.getElementById(id); if(el)el.value='';
+      });
       depSecOptions=[]; depSecLinks=[]; renderDepOptions(); renderDepLinks();
       loadDepSectionsList();
-    }).catch(function(e){errEl.textContent='Error: '+e.message;errEl.style.display='block';btn.textContent='Add Section';btn.disabled=false;});
+      if(errEl){errEl.textContent='Saved!';errEl.style.color='#4ade80';errEl.style.display='block';
+        setTimeout(function(){errEl.style.display='none';errEl.style.color='';},2000);}
+    }).catch(function(e){if(errEl){errEl.textContent='Error: '+e.message;errEl.style.display='block';}btn.textContent='Add Section';btn.disabled=false;});
   }
 
   function loadDepSectionsList() {
-    var wrap=document.getElementById('dep-sections-list');
+    var wrap=document.getElementById('dep-sections-list'); if(!wrap)return;
     wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
     fbGet('/depositSections').then(function(data){
-      if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No deposit sections yet.</div>';return;}
+      if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No deposit sections yet. Add one above!</div>';return;}
       wrap.innerHTML='';
       Object.entries(data).forEach(function(e){
         var key=e[0],sec=e[1],isActive=sec.active!==false;
-        var row=document.createElement('div');
-        row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
+        var row=document.createElement('div'); row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
         var hdr=document.createElement('div'); hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
         var ttl=document.createElement('div'); ttl.style.cssText='font-size:14px;font-weight:700;color:#fff;'; ttl.textContent=(sec.icon||'💰')+' '+(sec.title||'');
         var badge=document.createElement('span'); badge.style.cssText='background:'+(isActive?'rgba(74,222,128,0.1)':'rgba(231,76,60,0.1)')+';color:'+(isActive?'#4ade80':'#e74c3c')+';border:1px solid '+(isActive?'rgba(74,222,128,0.3)':'rgba(231,76,60,0.3)')+';border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;'; badge.textContent=isActive?'ACTIVE':'HIDDEN';
@@ -2417,12 +2428,12 @@
         if(sec.options&&sec.options.length){var o=document.createElement('div');o.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:6px;';o.textContent=sec.options.length+' payment option(s)';row.appendChild(o);}
         var btns=document.createElement('div'); btns.style.cssText='display:flex;gap:6px;';
         var bt=document.createElement('button'); bt.style.cssText='flex:1;padding:6px;background:rgba(246,201,0,0.1);color:#f6c90e;border:1px solid rgba(246,201,0,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;'; bt.textContent=isActive?'Hide':'Show';
-        bt.addEventListener('click',function(){fbUpdate('/depositSections/'+key,{active:!isActive}).then(function(){loadDepSectionsList();});});
+        bt.addEventListener('click',(function(k,a){return function(){fbUpdate('/depositSections/'+k,{active:!a}).then(function(){loadDepSectionsList();});};})(key,isActive));
         var bd=document.createElement('button'); bd.style.cssText='flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;'; bd.textContent='Delete';
-        bd.addEventListener('click',function(){if(!confirm('Delete this deposit section?'))return;fetch(FB+'/depositSections/'+key+'.json',{method:'DELETE'}).then(function(){loadDepSectionsList();});});
+        bd.addEventListener('click',(function(k){return function(){if(!confirm('Delete?'))return;fetch(FB+'/depositSections/'+k+'.json',{method:'DELETE'}).then(function(){loadDepSectionsList();});};})(key));
         btns.appendChild(bt); btns.appendChild(bd); row.appendChild(btns); wrap.appendChild(row);
       });
-    });
+    }).catch(function(e){wrap.innerHTML='<div style="color:#e74c3c;padding:1rem;">Error: '+e.message+'</div>';});
   }
 
   // ── WITHDRAWAL SECTIONS ──
