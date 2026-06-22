@@ -1410,7 +1410,10 @@
       fbGet('/agentTxns'),
       fbGet('/playerTxns'),
       fbGet('/playerCryptoDeposits'),
-      fbGet('/players/'+key+'/kyc')
+      fbGet('/players/'+key+'/kyc'),
+      fbGet('/players/'+key+'/depositMethods'),
+      fbGet('/players/'+key+'/allowedWdMethods'),
+      fbGet('/withdrawalSections')
     ]).then(function(res) {
       var agentTxns=res[0]||{}, playerTxns=res[1]||{}, cryptoDeps=res[2]||{}, kyc=res[3]||null;
       var depositMethods=res[4]||{};
