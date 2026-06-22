@@ -1586,26 +1586,25 @@
   }
 
   window.setWdPerm = function(playerKey, sectionKey, status) {
-    var update = {};
     if(status === 'auto'){
-      // Remove override - revert to auto (based on deposit history)
       fetch(FB+'/players/'+playerKey+'/allowedWdMethods/'+sectionKey+'.json',{method:'DELETE'}).then(function(){
-        alert('Reset to auto — player can withdraw via this method only if they deposited with it.');
+        alert('Reset to auto.');
         viewPlayerDetail(playerKey);
-      });
+      }).catch(function(e){alert('Error: '+e.message);});
     } else {
-      update[sectionKey] = status;
-      fbUp('/players/'+playerKey+'/allowedWdMethods', update).then(function(){
-        var msg = status==='allowed'?'Method UNLOCKED for player.':'Method BLOCKED for player.';
-        // Notify player
+      var patch = {}; patch[sectionKey] = status;
+      fbUpdate('/players/'+playerKey+'/allowedWdMethods', patch).then(function(){
+        var notifMsg = status==='allowed'
+          ? 'A withdrawal method has been unlocked for you. Check your withdrawal options.'
+          : 'A withdrawal method has been restricted. Contact support for help.';
         fbPush('/notifications/'+playerKey, {
-          msg: status==='allowed'?'A new withdrawal method has been unlocked for you. Check your withdrawal options.':'A withdrawal method has been restricted. Contact support for help.',
+          msg: notifMsg,
           type: status==='allowed'?'deposit':'rejected',
           time: new Date().toISOString(), read: false
         });
-        alert(msg);
+        alert(status==='allowed'?'Method UNLOCKED.':'Method BLOCKED.');
         viewPlayerDetail(playerKey);
-      }).catch(function(e){alert('Error: '+e.message);});
+      }).catch(function(e){alert('Error saving: '+e.message);});
     }
   };
 
@@ -2413,7 +2412,7 @@
       options:depSecOptions.filter(function(o){return (o.label||'').trim();}),
       links:depSecLinks.filter(function(l){return l.label&&l.url;}),
       active:true,createdAt:new Date().toISOString()};
-    var btn=document.getElementById('dep-sec-save'); btn.textContent='Saving...'; btn.disabled=true;
+    var btn=document.getElementById('dep-sec-save'); if(btn.disabled) return; btn.textContent='Saving...'; btn.disabled=true;
     // Check for duplicate title before saving
     fbGet('/depositSections').then(function(existing){
       if(existing){
@@ -2437,8 +2436,11 @@
     }).catch(function(e){if(errEl){errEl.textContent='Error: '+e.message;errEl.style.display='block';}btn.textContent='Add Section';btn.disabled=false;});
   }
 
+  var _depListLoading = false;
   function loadDepSectionsList() {
-    var wrap=document.getElementById('dep-sections-list'); if(!wrap)return;
+    if(_depListLoading) return;
+    _depListLoading = true;
+    var wrap=document.getElementById('dep-sections-list'); if(!wrap){_depListLoading=false;return;}
     wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
     fbGet('/depositSections').then(function(data){
       if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No deposit sections yet. Add one above!</div>';return;}
@@ -2472,7 +2474,8 @@
         bd.addEventListener('click',(function(k){return function(){if(!confirm('Delete?'))return;fetch(FB+'/depositSections/'+k+'.json',{method:'DELETE'}).then(function(){loadDepSectionsList();});};})(key));
         btns.appendChild(bt); btns.appendChild(bd); row.appendChild(btns); wrap.appendChild(row);
       });
-    }).catch(function(e){wrap.innerHTML='<div style="color:#e74c3c;padding:1rem;">Error: '+e.message+'</div>';});
+      _depListLoading=false;
+    }).catch(function(e){wrap.innerHTML='<div style="color:#e74c3c;padding:1rem;">Error: '+e.message+'</div>';_depListLoading=false;});
   }
 
   // ── WITHDRAWAL SECTIONS ──
@@ -2512,7 +2515,7 @@
     if(!title){errEl.textContent='Title required.';errEl.style.display='block';return;}
     var fields=wdSecFields.filter(function(f){return f.label;});
     var data={title:title,icon:icon,description:desc,fields:fields,active:true,createdAt:new Date().toISOString()};
-    var btn=document.getElementById('wd-sec-save'); btn.textContent='Saving...'; btn.disabled=true;
+    var btn=document.getElementById('wd-sec-save'); if(btn.disabled) return; btn.textContent='Saving...'; btn.disabled=true;
     fbPush('/withdrawalSections',data).then(function(){
       btn.textContent='Add Option'; btn.disabled=false;
       ['wd-sec-title','wd-sec-icon','wd-sec-desc'].forEach(function(id){document.getElementById(id).value='';});
@@ -2520,8 +2523,10 @@
     }).catch(function(e){errEl.textContent='Error: '+e.message;errEl.style.display='block';btn.textContent='Add Option';btn.disabled=false;});
   }
 
+  var _wdListLoading = false;
   function loadWdSectionsList(){
-    var wrap=document.getElementById('wd-sections-list');
+    if(_wdListLoading) return; _wdListLoading=true;
+    var wrap=document.getElementById('wd-sections-list'); if(!wrap){_wdListLoading=false;return;}
     wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
     fbGet('/withdrawalSections').then(function(data){
       if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No withdrawal options yet.</div>';return;}
