@@ -2201,35 +2201,49 @@
     });
   }
 
-  function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function escHtml(s){ var t=String(s||''); t=t.replace(/&/g,'&amp;'); t=t.replace(/\x3c/g,'&lt;'); t=t.replace(/\x3e/g,'&gt;'); t=t.replace(/"/g,'&quot;'); return t; }
 
   function loadDepSectionsList() {
     var wrap = document.getElementById('dep-sections-list');
     wrap.innerHTML = '<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
     fbGet('/depositSections').then(function(data){
       if(!data||!Object.keys(data).length){
-        wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No deposit sections yet. Add one above!</div>';return;
+        wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No deposit sections yet.</div>'; return;
       }
       wrap.innerHTML='';
       Object.entries(data).forEach(function(e){
-        var key=e[0],sec=e[1];
+        var key=e[0], sec=e[1];
+        var isActive=sec.active!==false;
         var row=document.createElement('div');
         row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
-        row.innerHTML=
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
-            '<div style="font-size:14px;font-weight:700;color:#fff;">'+(sec.icon||'💰')+' '+(sec.title||'')+'</div>'+
-            '<span style="background:'+(sec.active!==false?'rgba(74,222,128,0.1)':'rgba(231,76,60,0.1)')+';color:'+(sec.active!==false?'#4ade80':'#e74c3c')+';border:1px solid '+(sec.active!==false?'rgba(74,222,128,0.3)':'rgba(231,76,60,0.3)')+';border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;">'+(sec.active!==false?'ACTIVE':'HIDDEN')+'</span>'+
-          '</div>'+
-          (sec.description?'<div style="font-size:12px;color:#4a6ab0;margin-bottom:6px;">'+escHtml(sec.description)+'</div>':'')+
-          (sec.qrImageUrl?'<div style="font-size:11px;color:#4a6ab0;margin-bottom:6px;">QR: <a href="'+sec.qrImageUrl+'" target="_blank" style="color:#7eb3ff;">View QR Image</a></div>':'')+
-          ((sec.options&&sec.options.length)?'<div style="font-size:11px;color:#4a6ab0;margin-bottom:6px;">'+sec.options.length+' option(s)</div>':'')+
-          '<div style="display:flex;gap:6px;">'+
-            '<button onclick="toggleDepSec(''+key+'','+(sec.active!==false?'false':'true')+')" style="flex:1;padding:6px;background:rgba(246,201,0,0.1);color:#f6c90e;border:1px solid rgba(246,201,0,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">'+(sec.active!==false?'Hide':'Show')+'</button>'+
-            '<button onclick="deleteDepSec(''+key+'')" style="flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Delete</button>'+
-          '</div>';
+        // Header
+        var hdr=document.createElement('div');
+        hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
+        var ttl=document.createElement('div');
+        ttl.style.cssText='font-size:14px;font-weight:700;color:#fff;';
+        ttl.textContent=(sec.icon||'💰')+' '+(sec.title||'');
+        var badge=document.createElement('span');
+        badge.style.cssText='background:'+(isActive?'rgba(74,222,128,0.1)':'rgba(231,76,60,0.1)')+';color:'+(isActive?'#4ade80':'#e74c3c')+';border:1px solid '+(isActive?'rgba(74,222,128,0.3)':'rgba(231,76,60,0.3)')+';border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;';
+        badge.textContent=isActive?'ACTIVE':'HIDDEN';
+        hdr.appendChild(ttl); hdr.appendChild(badge); row.appendChild(hdr);
+        // Description
+        if(sec.description){var d=document.createElement('div');d.style.cssText='font-size:12px;color:#4a6ab0;margin-bottom:6px;';d.textContent=sec.description;row.appendChild(d);}
+        if(sec.qrImageUrl){var q=document.createElement('div');q.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:6px;';q.innerHTML='QR: <a href="'+sec.qrImageUrl+'" target="_blank" style="color:#7eb3ff;">View QR Image</a>';row.appendChild(q);}
+        if(sec.options&&sec.options.length){var o=document.createElement('div');o.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:6px;';o.textContent=sec.options.length+' option(s)';row.appendChild(o);}
+        // Buttons
+        var btns=document.createElement('div');btns.style.cssText='display:flex;gap:6px;';
+        var btnToggle=document.createElement('button');
+        btnToggle.style.cssText='flex:1;padding:6px;background:rgba(246,201,0,0.1);color:#f6c90e;border:1px solid rgba(246,201,0,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+        btnToggle.textContent=isActive?'Hide':'Show';
+        btnToggle.addEventListener('click',function(){toggleDepSec(key,!isActive);});
+        var btnDel=document.createElement('button');
+        btnDel.style.cssText='flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+        btnDel.textContent='Delete';
+        btnDel.addEventListener('click',function(){deleteDepSec(key);});
+        btns.appendChild(btnToggle); btns.appendChild(btnDel); row.appendChild(btns);
         wrap.appendChild(row);
       });
-    });
+    }).catch(function(e){wrap.innerHTML='<div style="color:#e74c3c;padding:1rem;">Error: '+e.message+'</div>';});
   }
 
   window.toggleDepSec=function(key,active){
@@ -2314,19 +2328,20 @@
       if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No withdrawal options yet.</div>';return;}
       wrap.innerHTML='';
       Object.entries(data).forEach(function(e){
-        var key=e[0],sec=e[1];
+        var key=e[0], sec=e[1];
         var row=document.createElement('div');
         row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
-        row.innerHTML=
-          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
-            '<div style="font-size:14px;font-weight:700;color:#fff;">'+(sec.icon||'💸')+' '+(sec.title||'')+'</div>'+
-            '<span style="background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;">ACTIVE</span>'+
-          '</div>'+
-          (sec.description?'<div style="font-size:12px;color:#4a6ab0;margin-bottom:8px;">'+escHtml(sec.description)+'</div>':'')+
-          ((sec.fields&&sec.fields.length)?'<div style="font-size:11px;color:#4a6ab0;margin-bottom:8px;">Fields: '+sec.fields.map(function(f){return f.label;}).join(', ')+'</div>':'')+
-          '<div style="display:flex;gap:6px;">'+
-            '<button onclick="deleteWdSec(''+key+'')" style="flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Delete</button>'+
-          '</div>';
+        var ttl=document.createElement('div');
+        ttl.style.cssText='font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;';
+        ttl.textContent=(sec.icon||'💸')+' '+(sec.title||'');
+        row.appendChild(ttl);
+        if(sec.description){var d=document.createElement('div');d.style.cssText='font-size:12px;color:#4a6ab0;margin-bottom:6px;';d.textContent=sec.description;row.appendChild(d);}
+        if(sec.fields&&sec.fields.length){var f=document.createElement('div');f.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:8px;';f.textContent='Fields: '+sec.fields.map(function(x){return x.label;}).join(', ');row.appendChild(f);}
+        var btnDel=document.createElement('button');
+        btnDel.style.cssText='width:100%;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+        btnDel.textContent='Delete';
+        btnDel.addEventListener('click',function(){deleteWdSec(key);});
+        row.appendChild(btnDel);
         wrap.appendChild(row);
       });
     });
@@ -2341,25 +2356,35 @@
       if(!entries.length){wrap.innerHTML='<div style="text-align:center;padding:0.5rem;color:#4ade80;font-size:12px;">No pending requests.</div>';return;}
       wrap.innerHTML='';
       entries.forEach(function(e){
-        var key=e[0],req=e[1];
+        var key=e[0], req=e[1];
         var row=document.createElement('div');
         row.style.cssText='background:#060d1a;border:1px solid #2255b8;border-radius:8px;padding:10px;margin-bottom:6px;';
-        var fieldsHtml='';
-        if(req.fields)Object.entries(req.fields).forEach(function(f){
-          fieldsHtml+='<div style="font-size:11px;color:#4a6ab0;">'+f[0]+': <strong style="color:#e0e8ff;">'+f[1]+'</strong></div>';
-        });
-        row.innerHTML=
-          '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">'+
-            '<div>'+
-              '<div style="font-size:13px;font-weight:700;color:#fff;">'+(req.playerName||'Unknown')+' — Rs.'+Number(req.amount||0).toLocaleString('en-NP')+'</div>'+
-              '<div style="font-size:11px;color:#4a6ab0;">'+(req.section||'')+' · '+new Date(req.time).toLocaleString()+'</div>'+
-              fieldsHtml+
-            '</div>'+
-          '</div>'+
-          '<div style="display:flex;gap:6px;">'+
-            '<button onclick="approveWdReq(''+key+'',''+req.playerKey+'','+req.amount+')" style="flex:1;padding:6px;background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Approve</button>'+
-            '<button onclick="rejectWdReq(''+key+'',''+req.playerKey+'')" style="flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Reject</button>'+
-          '</div>';
+        var info=document.createElement('div');
+        info.style.cssText='margin-bottom:8px;';
+        var name=document.createElement('div');
+        name.style.cssText='font-size:13px;font-weight:700;color:#fff;';
+        name.textContent=(req.playerName||'Unknown')+' — Rs.'+Number(req.amount||0).toLocaleString('en-NP');
+        info.appendChild(name);
+        var sub=document.createElement('div');
+        sub.style.cssText='font-size:11px;color:#4a6ab0;';
+        sub.textContent=(req.section||'')+' · '+new Date(req.time).toLocaleString();
+        info.appendChild(sub);
+        if(req.fields){Object.entries(req.fields).forEach(function(f){
+          var fd=document.createElement('div');fd.style.cssText='font-size:11px;color:#4a6ab0;';
+          fd.innerHTML=f[0]+': <strong style="color:#e0e8ff;">'+f[1]+'</strong>';
+          info.appendChild(fd);
+        });}
+        row.appendChild(info);
+        var btns=document.createElement('div');btns.style.cssText='display:flex;gap:6px;';
+        var btnApp=document.createElement('button');
+        btnApp.style.cssText='flex:1;padding:6px;background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+        btnApp.textContent='Approve';
+        btnApp.addEventListener('click',function(){approveWdReq(key,req.playerKey,req.amount);});
+        var btnRej=document.createElement('button');
+        btnRej.style.cssText='flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+        btnRej.textContent='Reject';
+        btnRej.addEventListener('click',function(){rejectWdReq(key,req.playerKey);});
+        btns.appendChild(btnApp); btns.appendChild(btnRej); row.appendChild(btns);
         wrap.appendChild(row);
       });
     });
