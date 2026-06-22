@@ -2347,256 +2347,269 @@
     if (dd && !e.target.closest('.search-wrap')) dd.classList.remove('open');
 
   // ── DEPOSIT SECTIONS ──
-  var depSecOptions = [], depSecLinks = [];
+  var _depOptions=[], _depLinks=[], _depSaving=false, _depLoading=false;
 
-  // Wire save button ONCE at init
-  document.getElementById('dep-sec-save').addEventListener('click', saveDepSection);
-
-  window.addDepOption = function() { depSecOptions.push({label:'',sub:'',address:''}); renderDepOptions(); };
-  window.addDepLink = function() { depSecLinks.push({label:'',url:'',icon:'',color:''}); renderDepLinks(); };
-
-  function openDepSections() {
+  function openDepSections(){
     document.getElementById('modal-dep-sections').classList.add('open');
-    depSecOptions=[]; depSecLinks=[];
-    renderDepOptions(); renderDepLinks();
-    ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr','dep-sec-proof-label'].forEach(function(id){
-      var el=document.getElementById(id); if(el)el.value='';
-    });
-    loadDepSectionsList();
+    _depOptions=[]; _depLinks=[];
+    renderDepOpts(); renderDepLnks();
+    ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr','dep-sec-proof-label']
+      .forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    var err=document.getElementById('dep-sec-err');if(err){err.style.display='none';err.style.color='';}
+    loadDepList();
   }
 
-  function renderDepOptions() {
-    var wrap = document.getElementById('dep-sec-options'); if(!wrap)return; wrap.innerHTML='';
-    depSecOptions.forEach(function(opt,i) {
-      var row=document.createElement('div');
-      row.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;';
-      [['Label','label'],['Network','sub'],['Address/Account','address']].forEach(function(pair){
-        var inp=document.createElement('input'); inp.placeholder=pair[0]; inp.value=opt[pair[1]]||'';
+  window.addDepOption=function(){_depOptions.push({label:'',sub:'',address:''});renderDepOpts();};
+  window.addDepLink=function(){_depLinks.push({label:'',url:'',icon:'🔗',color:''});renderDepLnks();};
+
+  function renderDepOpts(){
+    var w=document.getElementById('dep-sec-options');if(!w)return;w.innerHTML='';
+    _depOptions.forEach(function(opt,i){
+      var r=document.createElement('div');r.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;';
+      [['Label','label'],['Network','sub'],['Address','address']].forEach(function(p){
+        var inp=document.createElement('input');inp.value=opt[p[1]]||'';inp.placeholder=p[0];
         inp.style.cssText='padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;';
-        inp.addEventListener('input',(function(p){return function(){opt[p]=this.value;};})(pair[1]));
-        row.appendChild(inp);
+        inp.oninput=(function(key){return function(){opt[key]=this.value;};})(p[1]);
+        r.appendChild(inp);
       });
-      var del=document.createElement('button'); del.textContent='x';
-      del.style.cssText='padding:6px 10px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;';
-      del.addEventListener('click',(function(idx){return function(){depSecOptions.splice(idx,1);renderDepOptions();};})(i));
-      row.appendChild(del); wrap.appendChild(row);
+      var d=document.createElement('button');d.textContent='×';d.style.cssText='padding:6px 10px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:14px;';
+      d.onclick=(function(idx){return function(){_depOptions.splice(idx,1);renderDepOpts();};})(i);
+      r.appendChild(d);w.appendChild(r);
     });
   }
 
-  function renderDepLinks() {
-    var wrap=document.getElementById('dep-sec-links'); if(!wrap)return; wrap.innerHTML='';
-    depSecLinks.forEach(function(lnk,i){
-      var row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:1fr 1fr 40px 60px auto;gap:6px;margin-bottom:6px;';
-      [['Label','label'],['URL','url'],['Icon','icon'],['Color','color']].forEach(function(pair){
-        var inp=document.createElement('input'); inp.placeholder=pair[0]; inp.value=lnk[pair[1]]||'';
+  function renderDepLnks(){
+    var w=document.getElementById('dep-sec-links');if(!w)return;w.innerHTML='';
+    _depLinks.forEach(function(lnk,i){
+      var r=document.createElement('div');r.style.cssText='display:grid;grid-template-columns:1fr 1fr 40px auto;gap:6px;margin-bottom:6px;';
+      [['Label','label'],['URL','url'],['Icon','icon']].forEach(function(p){
+        var inp=document.createElement('input');inp.value=lnk[p[1]]||'';inp.placeholder=p[0];
         inp.style.cssText='padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;';
-        inp.addEventListener('input',(function(p){return function(){lnk[p]=this.value;};})(pair[1]));
-        row.appendChild(inp);
+        inp.oninput=(function(key){return function(){lnk[key]=this.value;};})(p[1]);
+        r.appendChild(inp);
       });
-      var del=document.createElement('button'); del.textContent='x';
-      del.style.cssText='padding:6px 10px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;';
-      del.addEventListener('click',(function(idx){return function(){depSecLinks.splice(idx,1);renderDepLinks();};})(i));
-      row.appendChild(del); wrap.appendChild(row);
+      var d=document.createElement('button');d.textContent='×';d.style.cssText='padding:6px 10px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:14px;';
+      d.onclick=(function(idx){return function(){_depLinks.splice(idx,1);renderDepLnks();};})(i);
+      r.appendChild(d);w.appendChild(r);
     });
   }
 
-  function saveDepSection() {
+  function saveDepSection(){
+    if(_depSaving)return;
     var title=(document.getElementById('dep-sec-title').value||'').trim();
     var icon=(document.getElementById('dep-sec-icon').value||'').trim()||'💰';
     var desc=(document.getElementById('dep-sec-desc').value||'').trim();
     var qr=(document.getElementById('dep-sec-qr').value||'').trim();
-    var proofLabel=(document.getElementById('dep-sec-proof-label').value||'').trim()||'Transaction ID';
-    var errEl=document.getElementById('dep-sec-err'); if(errEl)errEl.style.display='none';
-    if(!title){if(errEl){errEl.textContent='Title required.';errEl.style.display='block';}return;}
-    var data={title:title,icon:icon,description:desc,qrImageUrl:qr,proofLabel:proofLabel,
-      options:depSecOptions.filter(function(o){return (o.label||'').trim();}),
-      links:depSecLinks.filter(function(l){return l.label&&l.url;}),
-      active:true,createdAt:new Date().toISOString()};
-    var btn=document.getElementById('dep-sec-save'); if(btn.disabled) return; btn.textContent='Saving...'; btn.disabled=true;
-    // Check for duplicate title before saving
-    fbGet('/depositSections').then(function(existing){
-      if(existing){
-        var dupe = Object.values(existing).find(function(s){return (s.title||'').toLowerCase()===title.toLowerCase();});
-        if(dupe){
-          if(errEl){errEl.textContent='A section with this title already exists!';errEl.style.display='block';}
-          btn.textContent='Add Section'; btn.disabled=false; return Promise.resolve(null);
+    var proof=(document.getElementById('dep-sec-proof-label').value||'').trim()||'Transaction ID';
+    var err=document.getElementById('dep-sec-err');if(err)err.style.display='none';
+    if(!title){if(err){err.textContent='Title is required.';err.style.display='block';}return;}
+    var btn=document.getElementById('dep-sec-save');
+    _depSaving=true;btn.disabled=true;btn.textContent='Saving...';
+    // Check duplicate title first
+    fbGet('/depositSections').then(function(ex){
+      if(ex){
+        var keys=Object.keys(ex);
+        for(var i=0;i<keys.length;i++){
+          if((ex[keys[i]].title||'').toLowerCase()===title.toLowerCase()){
+            _depSaving=false;btn.disabled=false;btn.textContent='Add Section';
+            if(err){err.textContent='Section "'+title+'" already exists!';err.style.display='block';}
+            return;
+          }
         }
       }
-      return fbPush('/depositSections',data);
+      var data={title:title,icon:icon,description:desc,qrImageUrl:qr,proofLabel:proof,
+        options:_depOptions.filter(function(o){return(o.label||'').trim();}),
+        links:_depLinks.filter(function(l){return l.label&&l.url;}),
+        active:true,createdAt:new Date().toISOString()};
+      return fetch(FB+'/depositSections.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     }).then(function(res){
       if(!res)return;
-      btn.textContent='Add Section'; btn.disabled=false;
-      ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr','dep-sec-proof-label'].forEach(function(id){
-        var el=document.getElementById(id); if(el)el.value='';
-      });
-      depSecOptions=[]; depSecLinks=[]; renderDepOptions(); renderDepLinks();
-      loadDepSectionsList();
-      if(errEl){errEl.textContent='Section added!';errEl.style.color='#4ade80';errEl.style.display='block';
-        setTimeout(function(){errEl.style.display='none';errEl.style.color='';},2000);}
-    }).catch(function(e){if(errEl){errEl.textContent='Error: '+e.message;errEl.style.display='block';}btn.textContent='Add Section';btn.disabled=false;});
+      _depSaving=false;btn.disabled=false;btn.textContent='Add Section';
+      ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr','dep-sec-proof-label'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+      _depOptions=[];_depLinks=[];renderDepOpts();renderDepLnks();
+      if(err){err.textContent='✓ Saved!';err.style.color='#4ade80';err.style.display='block';setTimeout(function(){err.style.display='none';err.style.color='';},2000);}
+      loadDepList();
+    }).catch(function(e){
+      _depSaving=false;btn.disabled=false;btn.textContent='Add Section';
+      if(err){err.textContent='Error: '+e.message;err.style.display='block';}
+    });
   }
 
-  var _depListLoading = false;
-  function loadDepSectionsList() {
-    if(_depListLoading) return;
-    _depListLoading = true;
-    var wrap=document.getElementById('dep-sections-list'); if(!wrap){_depListLoading=false;return;}
-    wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
+  function loadDepList(){
+    if(_depLoading)return;_depLoading=true;
+    var w=document.getElementById('dep-sections-list');if(!w){_depLoading=false;return;}
+    w.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
     fbGet('/depositSections').then(function(data){
-      if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No deposit sections yet. Add one above!</div>';return;}
-      // Auto-deduplicate: keep only the LAST entry per title
+      _depLoading=false;
+      if(!data||!Object.keys(data).length){w.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No sections yet. Add one above.</div>';return;}
+      // Remove duplicates by title - keep last
       var seen={}, toDelete=[];
       Object.entries(data).forEach(function(e){
-        var k=e[0], t=(e[1].title||'').toLowerCase();
-        if(seen[t]) toDelete.push(seen[t]); // delete previous duplicate
-        seen[t]=k;
+        var t=(e[1].title||'').toLowerCase();
+        if(seen[t])toDelete.push(seen[t]);
+        seen[t]=e[0];
       });
-      if(toDelete.length>0){
+      if(toDelete.length){
         Promise.all(toDelete.map(function(k){return fetch(FB+'/depositSections/'+k+'.json',{method:'DELETE'});}))
-          .then(function(){loadDepSectionsList();});
+          .then(function(){loadDepList();});
         return;
       }
-      wrap.innerHTML='';
+      w.innerHTML='';
       Object.entries(data).forEach(function(e){
-        var key=e[0],sec=e[1],isActive=sec.active!==false;
-        var row=document.createElement('div'); row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
-        var hdr=document.createElement('div'); hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
-        var ttl=document.createElement('div'); ttl.style.cssText='font-size:14px;font-weight:700;color:#fff;'; ttl.textContent=(sec.icon||'💰')+' '+(sec.title||'');
-        var badge=document.createElement('span'); badge.style.cssText='background:'+(isActive?'rgba(74,222,128,0.1)':'rgba(231,76,60,0.1)')+';color:'+(isActive?'#4ade80':'#e74c3c')+';border:1px solid '+(isActive?'rgba(74,222,128,0.3)':'rgba(231,76,60,0.3)')+';border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;'; badge.textContent=isActive?'ACTIVE':'HIDDEN';
-        hdr.appendChild(ttl); hdr.appendChild(badge); row.appendChild(hdr);
+        var key=e[0],sec=e[1],active=sec.active!==false;
+        var row=document.createElement('div');row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
+        var hdr=document.createElement('div');hdr.style.cssText='display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;';
+        var nm=document.createElement('div');nm.style.cssText='font-size:14px;font-weight:700;color:#fff;';nm.textContent=(sec.icon||'💰')+' '+(sec.title||'');
+        var badge=document.createElement('span');badge.style.cssText='font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;background:'+(active?'rgba(74,222,128,0.1)':'rgba(231,76,60,0.1)')+';color:'+(active?'#4ade80':'#e74c3c')+';border:1px solid '+(active?'rgba(74,222,128,0.3)':'rgba(231,76,60,0.3)')+';';
+        badge.textContent=active?'ACTIVE':'HIDDEN';
+        hdr.appendChild(nm);hdr.appendChild(badge);row.appendChild(hdr);
         if(sec.description){var d=document.createElement('div');d.style.cssText='font-size:12px;color:#4a6ab0;margin-bottom:6px;';d.textContent=sec.description;row.appendChild(d);}
         if(sec.qrImageUrl){var q=document.createElement('div');q.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:6px;';q.innerHTML='QR: <a href="'+sec.qrImageUrl+'" target="_blank" style="color:#7eb3ff;">View</a>';row.appendChild(q);}
         if(sec.options&&sec.options.length){var o=document.createElement('div');o.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:6px;';o.textContent=sec.options.length+' payment option(s)';row.appendChild(o);}
-        var btns=document.createElement('div'); btns.style.cssText='display:flex;gap:6px;';
-        var bt=document.createElement('button'); bt.style.cssText='flex:1;padding:6px;background:rgba(246,201,0,0.1);color:#f6c90e;border:1px solid rgba(246,201,0,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;'; bt.textContent=isActive?'Hide':'Show';
-        bt.addEventListener('click',(function(k,a){return function(){fbUpdate('/depositSections/'+k,{active:!a}).then(function(){loadDepSectionsList();});};})(key,isActive));
-        var bd=document.createElement('button'); bd.style.cssText='flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;'; bd.textContent='Delete';
-        bd.addEventListener('click',(function(k){return function(){if(!confirm('Delete?'))return;fetch(FB+'/depositSections/'+k+'.json',{method:'DELETE'}).then(function(){loadDepSectionsList();});};})(key));
-        btns.appendChild(bt); btns.appendChild(bd); row.appendChild(btns); wrap.appendChild(row);
+        var btns=document.createElement('div');btns.style.cssText='display:flex;gap:6px;';
+        var tog=document.createElement('button');tog.textContent=active?'Hide':'Show';
+        tog.style.cssText='flex:1;padding:6px;background:rgba(246,201,0,0.1);color:#f6c90e;border:1px solid rgba(246,201,0,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+        tog.onclick=(function(k,a){return function(){fetch(FB+'/depositSections/'+k+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({active:!a})}).then(function(){loadDepList();});};})(key,active);
+        var del=document.createElement('button');del.textContent='Delete';
+        del.style.cssText='flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+        del.onclick=(function(k){return function(){if(!confirm('Delete this section?'))return;fetch(FB+'/depositSections/'+k+'.json',{method:'DELETE'}).then(function(){loadDepList();});};})(key);
+        btns.appendChild(tog);btns.appendChild(del);row.appendChild(btns);w.appendChild(row);
       });
-      _depListLoading=false;
-    }).catch(function(e){wrap.innerHTML='<div style="color:#e74c3c;padding:1rem;">Error: '+e.message+'</div>';_depListLoading=false;});
+    }).catch(function(e){_depLoading=false;w.innerHTML='<div style="color:#e74c3c;padding:1rem;">Error: '+e.message+'</div>';});
   }
 
   // ── WITHDRAWAL SECTIONS ──
-  var wdSecFields=[], wdSaveListenerAdded=false;
+  var _wdFields=[], _wdSaving=false, _wdLoading=false;
 
-  function openWdSections() {
+  function openWdSections(){
     document.getElementById('modal-wd-sections').classList.add('open');
-    loadWdSectionsList(); loadWdRequests();
-    if(!wdSaveListenerAdded){
-      wdSaveListenerAdded=true;
-      document.getElementById('wd-sec-save').addEventListener('click', saveWdSection);
-    }
+    _wdFields=[];renderWdFlds();
+    ['wd-sec-title','wd-sec-icon','wd-sec-desc'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+    loadWdList();loadWdReqs();
   }
 
-  window.addWdField=function(){wdSecFields.push({label:'',placeholder:''});renderWdFields();};
+  window.addWdField=function(){_wdFields.push({label:'',placeholder:''});renderWdFlds();};
 
-  function renderWdFields(){
-    var wrap=document.getElementById('wd-sec-fields'); wrap.innerHTML='';
-    wdSecFields.forEach(function(f,i){
-      var row=document.createElement('div'); row.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:6px;';
-      [['Field name (e.g. Account No)','label'],['Placeholder text','placeholder']].forEach(function(pair){
-        var inp=document.createElement('input'); inp.placeholder=pair[0]; inp.value=f[pair[1]]||'';
+  function renderWdFlds(){
+    var w=document.getElementById('wd-sec-fields');if(!w)return;w.innerHTML='';
+    _wdFields.forEach(function(f,i){
+      var r=document.createElement('div');r.style.cssText='display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:6px;';
+      [['Field name','label'],['Placeholder','placeholder']].forEach(function(p){
+        var inp=document.createElement('input');inp.value=f[p[1]]||'';inp.placeholder=p[0];
         inp.style.cssText='padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;';
-        inp.addEventListener('input',function(){wdSecFields[i][pair[1]]=this.value;});
-        row.appendChild(inp);
+        inp.oninput=(function(key){return function(){f[key]=this.value;};})(p[1]);
+        r.appendChild(inp);
       });
-      var del=document.createElement('button'); del.textContent='×'; del.style.cssText='padding:6px 8px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:12px;';
-      del.addEventListener('click',function(){wdSecFields.splice(i,1);renderWdFields();}); row.appendChild(del); wrap.appendChild(row);
+      var d=document.createElement('button');d.textContent='×';d.style.cssText='padding:6px 10px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:14px;';
+      d.onclick=(function(idx){return function(){_wdFields.splice(idx,1);renderWdFlds();};})(i);
+      r.appendChild(d);w.appendChild(r);
     });
   }
 
   function saveWdSection(){
+    if(_wdSaving)return;
     var title=(document.getElementById('wd-sec-title').value||'').trim();
     var icon=(document.getElementById('wd-sec-icon').value||'').trim()||'💸';
     var desc=(document.getElementById('wd-sec-desc').value||'').trim();
-    var errEl=document.getElementById('wd-sec-err'); errEl.style.display='none';
-    if(!title){errEl.textContent='Title required.';errEl.style.display='block';return;}
-    var fields=wdSecFields.filter(function(f){return f.label;});
-    var data={title:title,icon:icon,description:desc,fields:fields,active:true,createdAt:new Date().toISOString()};
-    var btn=document.getElementById('wd-sec-save'); if(btn.disabled) return; btn.textContent='Saving...'; btn.disabled=true;
-    fbPush('/withdrawalSections',data).then(function(){
-      btn.textContent='Add Option'; btn.disabled=false;
-      ['wd-sec-title','wd-sec-icon','wd-sec-desc'].forEach(function(id){document.getElementById(id).value='';});
-      wdSecFields=[]; renderWdFields(); loadWdSectionsList();
-    }).catch(function(e){errEl.textContent='Error: '+e.message;errEl.style.display='block';btn.textContent='Add Option';btn.disabled=false;});
+    var err=document.getElementById('wd-sec-err');if(err)err.style.display='none';
+    if(!title){if(err){err.textContent='Title required.';err.style.display='block';}return;}
+    var btn=document.getElementById('wd-sec-save');
+    _wdSaving=true;btn.disabled=true;btn.textContent='Saving...';
+    var data={title:title,icon:icon,description:desc,fields:_wdFields.filter(function(f){return f.label;}),active:true,createdAt:new Date().toISOString()};
+    fetch(FB+'/withdrawalSections.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(function(){
+        _wdSaving=false;btn.disabled=false;btn.textContent='Add Option';
+        ['wd-sec-title','wd-sec-icon','wd-sec-desc'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+        _wdFields=[];renderWdFlds();loadWdList();
+      }).catch(function(e){_wdSaving=false;btn.disabled=false;btn.textContent='Add Option';if(err){err.textContent='Error: '+e.message;err.style.display='block';}});
   }
 
-  var _wdListLoading = false;
-  function loadWdSectionsList(){
-    if(_wdListLoading) return; _wdListLoading=true;
-    var wrap=document.getElementById('wd-sections-list'); if(!wrap){_wdListLoading=false;return;}
-    wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
+  function loadWdList(){
+    if(_wdLoading)return;_wdLoading=true;
+    var w=document.getElementById('wd-sections-list');if(!w){_wdLoading=false;return;}
+    w.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
     fbGet('/withdrawalSections').then(function(data){
-      if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No withdrawal options yet.</div>';return;}
-      wrap.innerHTML='';
+      _wdLoading=false;
+      if(!data||!Object.keys(data).length){w.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No options yet.</div>';return;}
+      w.innerHTML='';
       Object.entries(data).forEach(function(e){
         var key=e[0],sec=e[1];
-        var row=document.createElement('div'); row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
-        var ttl=document.createElement('div'); ttl.style.cssText='font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;'; ttl.textContent=(sec.icon||'💸')+' '+(sec.title||'');
-        row.appendChild(ttl);
-        if(sec.description){var d=document.createElement('div');d.style.cssText='font-size:12px;color:#4a6ab0;margin-bottom:6px;';d.textContent=sec.description;row.appendChild(d);}
-        if(sec.fields&&sec.fields.length){var fl=document.createElement('div');fl.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:8px;';fl.textContent='Fields: '+sec.fields.map(function(x){return x.label;}).join(', ');row.appendChild(fl);}
-        var bd=document.createElement('button'); bd.style.cssText='width:100%;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;'; bd.textContent='Delete';
-        bd.addEventListener('click',function(){if(!confirm('Delete?'))return;fetch(FB+'/withdrawalSections/'+key+'.json',{method:'DELETE'}).then(function(){loadWdSectionsList();});});
-        row.appendChild(bd); wrap.appendChild(row);
-      });
-    });
-  }
-
-  function loadWdRequests(){
-    var wrap=document.getElementById('wd-requests-list');
-    wrap.innerHTML='<div style="font-size:12px;color:#4a6ab0;padding:0.5rem;text-align:center;">Loading...</div>';
-    fbGet('/withdrawalRequests').then(function(data){
-      if(!data){wrap.innerHTML='<div style="font-size:12px;color:#4a6ab0;padding:0.5rem;text-align:center;">No requests.</div>';return;}
-      var entries=Object.entries(data).filter(function(e){return e[1].status==='pending';});
-      if(!entries.length){wrap.innerHTML='<div style="font-size:12px;color:#4ade80;padding:0.5rem;text-align:center;">No pending requests.</div>';return;}
-      wrap.innerHTML='';
-      entries.forEach(function(e){
-        var key=e[0],req=e[1];
-        var row=document.createElement('div'); row.style.cssText='background:#060d1a;border:1px solid #2255b8;border-radius:8px;padding:10px;margin-bottom:6px;';
-        var nm=document.createElement('div'); nm.style.cssText='font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;';
-        nm.textContent=(req.playerName||'Unknown')+' — Rs.'+Number(req.amount||0).toLocaleString('en-NP');
+        var row=document.createElement('div');row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
+        var nm=document.createElement('div');nm.style.cssText='font-size:14px;font-weight:700;color:#fff;margin-bottom:6px;';nm.textContent=(sec.icon||'💸')+' '+(sec.title||'');
         row.appendChild(nm);
-        var sb=document.createElement('div'); sb.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:6px;';
-        sb.textContent=(req.section||'')+' · '+new Date(req.time).toLocaleString(); row.appendChild(sb);
-        if(req.fields){Object.entries(req.fields).forEach(function(f){
-          var fd=document.createElement('div'); fd.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:2px;';
-          fd.textContent=f[0]+': '+f[1]; row.appendChild(fd);
-        });}
-        var btns=document.createElement('div'); btns.style.cssText='display:flex;gap:6px;margin-top:8px;';
-        var ba=document.createElement('button'); ba.style.cssText='flex:1;padding:6px;background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;'; ba.textContent='Approve';
-        ba.addEventListener('click',function(){
-          if(!confirm('Approve Rs.'+Number(req.amount||0).toLocaleString('en-NP')+' withdrawal?'))return;
-          fbUpdate('/withdrawalRequests/'+key,{status:'approved',settledAt:new Date().toISOString()}).then(function(){
-            return fbGet('/players/'+req.playerKey);
-          }).then(function(player){
-            if(!player)return;
-            var nb=Math.max(0,(Number(player.balance)||0)-req.amount);
-            return fbUpdate('/players/'+req.playerKey,{balance:nb}).then(function(){
-              return fbPush('/notifications/'+req.playerKey,{msg:'Withdrawal of Rs.'+Number(req.amount).toLocaleString('en-NP')+' approved and processed.',type:'withdrawal',time:new Date().toISOString(),read:false});
-            });
-          }).then(function(){alert('Approved!');loadWdRequests();}).catch(function(e){alert('Error: '+e.message);});
-        });
-        var br=document.createElement('button'); br.style.cssText='flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;'; br.textContent='Reject';
-        br.addEventListener('click',function(){
-          if(!confirm('Reject this withdrawal?'))return;
-          fbUpdate('/withdrawalRequests/'+key,{status:'rejected'}).then(function(){
-            return fbPush('/notifications/'+req.playerKey,{msg:'Your withdrawal request was rejected. Contact support.',type:'rejected',time:new Date().toISOString(),read:false});
-          }).then(function(){alert('Rejected.');loadWdRequests();});
-        });
-        btns.appendChild(ba); btns.appendChild(br); row.appendChild(btns); wrap.appendChild(row);
+        if(sec.description){var d=document.createElement('div');d.style.cssText='font-size:12px;color:#4a6ab0;margin-bottom:6px;';d.textContent=sec.description;row.appendChild(d);}
+        if(sec.fields&&sec.fields.length){var fl=document.createElement('div');fl.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:8px;';fl.textContent='Fields: '+sec.fields.map(function(f){return f.label;}).join(', ');row.appendChild(fl);}
+        var del=document.createElement('button');del.textContent='Delete';del.style.cssText='width:100%;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;';
+        del.onclick=(function(k){return function(){if(!confirm('Delete?'))return;fetch(FB+'/withdrawalSections/'+k+'.json',{method:'DELETE'}).then(function(){loadWdList();});};})(key);
+        row.appendChild(del);w.appendChild(row);
       });
-    });
+    }).catch(function(e){_wdLoading=false;w.innerHTML='<div style="color:#e74c3c;padding:1rem;">Error: '+e.message+'</div>';});
   }
 
+  function loadWdReqs(){
+    var w=document.getElementById('wd-requests-list');if(!w)return;
+    w.innerHTML='<div style="font-size:12px;color:#4a6ab0;padding:0.5rem;text-align:center;">Loading...</div>';
+    fbGet('/withdrawalRequests').then(function(data){
+      if(!data){w.innerHTML='<div style="font-size:12px;color:#4a6ab0;padding:0.5rem;text-align:center;">No requests.</div>';return;}
+      var pend=Object.entries(data).filter(function(e){return e[1].status==='pending';});
+      if(!pend.length){w.innerHTML='<div style="font-size:12px;color:#4ade80;padding:0.5rem;text-align:center;">No pending requests.</div>';return;}
+      w.innerHTML='';
+      pend.forEach(function(e){
+        var key=e[0],req=e[1];
+        var row=document.createElement('div');row.style.cssText='background:#060d1a;border:1px solid #2255b8;border-radius:8px;padding:10px;margin-bottom:6px;';
+        var nm=document.createElement('div');nm.style.cssText='font-size:13px;font-weight:700;color:#fff;margin-bottom:4px;';nm.textContent=(req.playerName||'?')+' — Rs.'+Number(req.amount||0).toLocaleString('en-NP');row.appendChild(nm);
+        var sb=document.createElement('div');sb.style.cssText='font-size:11px;color:#4a6ab0;margin-bottom:6px;';sb.textContent=(req.section||'')+' · '+new Date(req.time).toLocaleString();row.appendChild(sb);
+        if(req.fields)Object.entries(req.fields).forEach(function(f){var fd=document.createElement('div');fd.style.cssText='font-size:11px;color:#7eb3ff;';fd.textContent=f[0]+': '+f[1];row.appendChild(fd);});
+        var btns=document.createElement('div');btns.style.cssText='display:flex;gap:6px;margin-top:8px;';
+        var app=document.createElement('button');app.textContent='✓ Approve';app.style.cssText='flex:1;padding:7px;background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.4);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;';
+        app.onclick=(function(k,r2){return function(){
+          if(!confirm('Approve Rs.'+Number(r2.amount||0).toLocaleString('en-NP')+'?'))return;
+          fetch(FB+'/withdrawalRequests/'+k+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'approved',settledAt:new Date().toISOString()})})
+            .then(function(){return fbGet('/players/'+r2.playerKey);})
+            .then(function(pl){if(!pl)return;var nb=Math.max(0,(Number(pl.balance)||0)-r2.amount);
+              return fetch(FB+'/players/'+r2.playerKey+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({balance:nb})})
+                .then(function(){return fetch(FB+'/notifications/'+r2.playerKey+'.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg:'Withdrawal of Rs.'+Number(r2.amount).toLocaleString('en-NP')+' approved!',type:'withdrawal',time:new Date().toISOString(),read:false})});})
+            }).then(function(){alert('Approved!');loadWdReqs();}).catch(function(e){alert('Error: '+e.message);});
+        };})(key,req);
+        var rej=document.createElement('button');rej.textContent='✗ Reject';rej.style.cssText='flex:1;padding:7px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;';
+        rej.onclick=(function(k,r2){return function(){
+          if(!confirm('Reject?'))return;
+          fetch(FB+'/withdrawalRequests/'+k+'.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'rejected'})})
+            .then(function(){return fetch(FB+'/notifications/'+r2.playerKey+'.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg:'Withdrawal rejected. Contact support.',type:'rejected',time:new Date().toISOString(),read:false})});})
+            .then(function(){alert('Rejected.');loadWdReqs();}).catch(function(e){alert('Error: '+e.message);});
+        };})(key,req);
+        btns.appendChild(app);btns.appendChild(rej);row.appendChild(btns);w.appendChild(row);
+      });
+    }).catch(function(){w.innerHTML='<div style="color:#e74c3c;font-size:12px;padding:0.5rem;">Error loading.</div>';});
+  }
 
-  // Wire buttons
+  // ── WITHDRAWAL PERMISSIONS (called from viewPlayerDetail) ──
+  window.setWdPerm=function(playerKey,sectionKey,status){
+    if(status==='auto'){
+      fetch(FB+'/players/'+playerKey+'/allowedWdMethods/'+sectionKey+'.json',{method:'DELETE'})
+        .then(function(){alert('Reset to auto.');viewPlayerDetail(playerKey);})
+        .catch(function(e){alert('Error: '+e.message);});
+    } else {
+      var patch={};patch[sectionKey]=status;
+      fetch(FB+'/players/'+playerKey+'/allowedWdMethods.json',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(patch)})
+        .then(function(){
+          var msg=status==='allowed'?'Withdrawal method UNLOCKED for this player.':'Withdrawal method BLOCKED for this player.';
+          fetch(FB+'/notifications/'+playerKey+'.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({msg:status==='allowed'?'A withdrawal method has been unlocked for you!':'A withdrawal method has been restricted.',type:status==='allowed'?'deposit':'rejected',time:new Date().toISOString(),read:false})});
+          alert(msg);
+          viewPlayerDetail(playerKey);
+        }).catch(function(e){alert('Error: '+e.message);});
+    }
+  };
+
+
+  // Wire deposit/withdrawal modal buttons (ONCE)
   document.getElementById('dep-sections-btn').addEventListener('click', openDepSections);
   document.getElementById('dep-sections-close').addEventListener('click', function(){document.getElementById('modal-dep-sections').classList.remove('open');});
+  document.getElementById('dep-sec-save').addEventListener('click', saveDepSection);
   document.getElementById('wd-sections-btn').addEventListener('click', openWdSections);
   document.getElementById('wd-sections-close').addEventListener('click', function(){document.getElementById('modal-wd-sections').classList.remove('open');});
+  document.getElementById('wd-sec-save').addEventListener('click', saveWdSection);
+
 
   // Add to click-outside handler
 
