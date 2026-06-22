@@ -158,6 +158,8 @@
 
     <div class="action-row">
       <button class="action-btn" id="contacts-btn"><span class="aicon">📞</span> Deposit Contacts</button>
+      <button class="action-btn" id="dep-sections-btn"><span class="aicon">💰</span> Deposit Options</button>
+      <button class="action-btn" id="wd-sections-btn"><span class="aicon">💸</span> Withdraw Options</button>
       <button class="action-btn" id="sportevents-btn"><span class="aicon">🏟️</span> Sport Events</button>
       <button class="action-btn" id="sportbets-btn"><span class="aicon">⚽</span> Sport Bets <span class="player-count-badge" id="sportbets-badge" style="display:none;">0</span></button>
       <button class="action-btn" id="players-btn"><span class="aicon">👥</span> Players <span class="player-count-badge" id="player-count-badge" style="display:none;">0</span></button>
@@ -1354,8 +1356,22 @@
       btnDel.textContent = 'Delete';
       btnDel.addEventListener('click', function(){ deletePlayer(key, p.username||key); });
 
+      // Reset balance button (for cheaters)
+      var btnReset = document.createElement('button');
+      btnReset.style.cssText = 'background:rgba(246,201,0,0.1);color:#f6c90e;border:1px solid rgba(246,201,0,0.3);border-radius:6px;padding:5px 8px;font-size:11px;font-weight:700;cursor:pointer;';
+      btnReset.textContent = 'Reset Bal';
+      btnReset.addEventListener('click', function(){
+        if(!confirm('Reset balance of "' + (p.username||key) + '" to Rs.0?\n\nThis cannot be undone.')) return;
+        fbUpdate('/players/'+key, {balance:0}).then(function(){
+          if(allPlayersCache[key]) allPlayersCache[key].balance=0;
+          alert('Balance reset to Rs.0');
+          loadPlayers();
+        }).catch(function(e){alert('Error: '+e.message);});
+      });
+
       right.appendChild(btnView);
       right.appendChild(btnWd);
+      right.appendChild(btnReset);
       right.appendChild(btnDel);
       top.appendChild(left);
       top.appendChild(right);
@@ -1364,7 +1380,7 @@
       var stats = document.createElement('div');
       stats.className = 'player-stats';
       stats.innerHTML =
-        '<div class="pstat">Balance: <strong>Rs.' + Number(p.balance||0).toLocaleString('en-NP') + '</strong></div>' +
+        '<div class="pstat">Balance: <strong style="' + (Number(p.balance||0)>1000000?'color:#e74c3c;':'') + '">Rs.' + Number(p.balance||0).toLocaleString('en-NP') + '</strong>' + (Number(p.balance||0)>1000000?' <span style="background:#e74c3c;color:#fff;font-size:9px;padding:1px 5px;border-radius:10px;">SUSPICIOUS</span>':'') + '</div>' +
         '<div class="pstat">Deposited: <strong>Rs.' + Number(st.deposited).toLocaleString('en-NP') + '</strong></div>' +
         '<div class="pstat">Withdrawn: <strong>Rs.' + Number(st.withdrawn).toLocaleString('en-NP') + '</strong></div>' +
         '<div class="pstat">Agent: <strong>' + agents + '</strong></div>';
@@ -2134,7 +2150,273 @@
   document.addEventListener('click', function(e) {
     var dd = document.getElementById('search-dropdown');
     if (dd && !e.target.closest('.search-wrap')) dd.classList.remove('open');
-    ['modal-new-agent','modal-topup','modal-txns','modal-report','modal-agentweb','modal-pending','modal-players','modal-player-detail','modal-sendmsg','modal-issues','modal-sportbets','modal-sportevents','modal-contacts'].forEach(function(id) {
+
+  // ── DEPOSIT SECTIONS ──
+  var editingDepSecKey = null;
+  var depSecOptions = [];
+  var depSecLinks = [];
+
+  function openDepSections() {
+    document.getElementById('modal-dep-sections').classList.add('open');
+    loadDepSectionsList();
+  }
+
+  window.addDepOption = function() {
+    depSecOptions.push({label:'',sub:'',address:''});
+    renderDepOptions();
+  };
+  window.addDepLink = function() {
+    depSecLinks.push({label:'',url:'',icon:'',color:'',sub:''});
+    renderDepLinks();
+  };
+
+  function renderDepOptions() {
+    var wrap = document.getElementById('dep-sec-options');
+    wrap.innerHTML = '';
+    depSecOptions.forEach(function(opt,i) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:6px;margin-bottom:6px;';
+      row.innerHTML =
+        '<input placeholder="Label (e.g. USDT TRC20)" value="'+escHtml(opt.label||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;" onchange="depSecOptions['+i+'].label=this.value"/>'+
+        '<input placeholder="Sub (e.g. Tron Network)" value="'+escHtml(opt.sub||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;" onchange="depSecOptions['+i+'].sub=this.value"/>'+
+        '<input placeholder="Address/Account No" value="'+escHtml(opt.address||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;" onchange="depSecOptions['+i+'].address=this.value"/>'+
+        '<button onclick="depSecOptions.splice('+i+',1);renderDepOptions();" style="padding:6px 8px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:12px;">×</button>';
+      wrap.appendChild(row);
+    });
+  }
+
+  function renderDepLinks() {
+    var wrap = document.getElementById('dep-sec-links');
+    wrap.innerHTML = '';
+    depSecLinks.forEach(function(lnk,i) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr 40px 60px auto;gap:6px;margin-bottom:6px;';
+      row.innerHTML =
+        '<input placeholder="Label (e.g. Pay via eSewa)" value="'+escHtml(lnk.label||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;" onchange="depSecLinks['+i+'].label=this.value"/>'+
+        '<input placeholder="URL" value="'+escHtml(lnk.url||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;" onchange="depSecLinks['+i+'].url=this.value"/>'+
+        '<input placeholder="🔗" value="'+escHtml(lnk.icon||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;text-align:center;" onchange="depSecLinks['+i+'].icon=this.value"/>'+
+        '<input placeholder="#color" value="'+escHtml(lnk.color||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;" onchange="depSecLinks['+i+'].color=this.value"/>'+
+        '<button onclick="depSecLinks.splice('+i+',1);renderDepLinks();" style="padding:6px 8px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:12px;">×</button>';
+      wrap.appendChild(row);
+    });
+  }
+
+  function escHtml(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function loadDepSectionsList() {
+    var wrap = document.getElementById('dep-sections-list');
+    wrap.innerHTML = '<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
+    fbGet('/depositSections').then(function(data){
+      if(!data||!Object.keys(data).length){
+        wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No deposit sections yet. Add one above!</div>';return;
+      }
+      wrap.innerHTML='';
+      Object.entries(data).forEach(function(e){
+        var key=e[0],sec=e[1];
+        var row=document.createElement('div');
+        row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
+        row.innerHTML=
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
+            '<div style="font-size:14px;font-weight:700;color:#fff;">'+(sec.icon||'💰')+' '+(sec.title||'')+'</div>'+
+            '<span style="background:'+(sec.active!==false?'rgba(74,222,128,0.1)':'rgba(231,76,60,0.1)')+';color:'+(sec.active!==false?'#4ade80':'#e74c3c')+';border:1px solid '+(sec.active!==false?'rgba(74,222,128,0.3)':'rgba(231,76,60,0.3)')+';border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;">'+(sec.active!==false?'ACTIVE':'HIDDEN')+'</span>'+
+          '</div>'+
+          (sec.description?'<div style="font-size:12px;color:#4a6ab0;margin-bottom:6px;">'+escHtml(sec.description)+'</div>':'')+
+          (sec.qrImageUrl?'<div style="font-size:11px;color:#4a6ab0;margin-bottom:6px;">QR: <a href="'+sec.qrImageUrl+'" target="_blank" style="color:#7eb3ff;">View QR Image</a></div>':'')+
+          ((sec.options&&sec.options.length)?'<div style="font-size:11px;color:#4a6ab0;margin-bottom:6px;">'+sec.options.length+' option(s)</div>':'')+
+          '<div style="display:flex;gap:6px;">'+
+            '<button onclick="toggleDepSec(''+key+'','+(sec.active!==false?'false':'true')+')" style="flex:1;padding:6px;background:rgba(246,201,0,0.1);color:#f6c90e;border:1px solid rgba(246,201,0,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">'+(sec.active!==false?'Hide':'Show')+'</button>'+
+            '<button onclick="deleteDepSec(''+key+'')" style="flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Delete</button>'+
+          '</div>';
+        wrap.appendChild(row);
+      });
+    });
+  }
+
+  window.toggleDepSec=function(key,active){
+    fbUpdate('/depositSections/'+key,{active:active}).then(function(){loadDepSectionsList();});
+  };
+  window.deleteDepSec=function(key){
+    if(!confirm('Delete this deposit section?'))return;
+    fetch(FB+'/depositSections/'+key+'.json',{method:'DELETE'}).then(function(){loadDepSectionsList();});
+  };
+
+  document.getElementById('dep-sec-save').addEventListener('click',function(){
+    var title=(document.getElementById('dep-sec-title').value||'').trim();
+    var icon=(document.getElementById('dep-sec-icon').value||'').trim()||'💰';
+    var desc=(document.getElementById('dep-sec-desc').value||'').trim();
+    var qr=(document.getElementById('dep-sec-qr').value||'').trim();
+    var proofLabel=(document.getElementById('dep-sec-proof-label').value||'').trim()||'Transaction ID / Proof';
+    var errEl=document.getElementById('dep-sec-err'); errEl.style.display='none';
+    if(!title){errEl.textContent='Title is required.';errEl.style.display='block';return;}
+    // Collect options (fresh values from inputs)
+    var opts=[]; var optDivs=document.getElementById('dep-sec-options').querySelectorAll('input');
+    for(var i=0;i<depSecOptions.length;i++){
+      opts.push({
+        label:optDivs[i*3]?optDivs[i*3].value:'',
+        sub:optDivs[i*3+1]?optDivs[i*3+1].value:'',
+        address:optDivs[i*3+2]?optDivs[i*3+2].value:''
+      });
+    }
+    var links=[]; var lnkDivs=document.getElementById('dep-sec-links').querySelectorAll('input');
+    for(var i=0;i<depSecLinks.length;i++){
+      links.push({
+        label:lnkDivs[i*4]?lnkDivs[i*4].value:'',
+        url:lnkDivs[i*4+1]?lnkDivs[i*4+1].value:'',
+        icon:lnkDivs[i*4+2]?lnkDivs[i*4+2].value:'🔗',
+        color:lnkDivs[i*4+3]?lnkDivs[i*4+3].value:'var(--accent)'
+      });
+    }
+    var data={title:title,icon:icon,description:desc,qrImageUrl:qr,proofLabel:proofLabel,
+              options:opts.filter(function(o){return o.label;}),
+              links:links.filter(function(l){return l.label&&l.url;}),
+              active:true,createdAt:new Date().toISOString()};
+    var btn=document.getElementById('dep-sec-save'); btn.textContent='Saving...'; btn.disabled=true;
+    fbPush('/depositSections',data).then(function(){
+      btn.textContent='Add Section'; btn.disabled=false;
+      ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr','dep-sec-proof-label'].forEach(function(id){document.getElementById(id).value='';});
+      depSecOptions=[]; depSecLinks=[]; renderDepOptions(); renderDepLinks();
+      loadDepSectionsList();
+    }).catch(function(e){errEl.textContent='Error: '+e.message;errEl.style.display='block';btn.textContent='Add Section';btn.disabled=false;});
+  });
+
+  // ── WITHDRAWAL SECTIONS ──
+  var wdSecFields = [];
+
+  function openWdSections() {
+    document.getElementById('modal-wd-sections').classList.add('open');
+    loadWdSectionsList();
+    loadWdRequests();
+  }
+
+  window.addWdField = function() {
+    wdSecFields.push({label:'',placeholder:''});
+    renderWdFields();
+  };
+
+  function renderWdFields() {
+    var wrap = document.getElementById('wd-sec-fields');
+    wrap.innerHTML = '';
+    wdSecFields.forEach(function(f,i) {
+      var row = document.createElement('div');
+      row.style.cssText = 'display:grid;grid-template-columns:1fr 1fr auto;gap:6px;margin-bottom:6px;';
+      row.innerHTML =
+        '<input placeholder="Field name (e.g. Account Number)" value="'+escHtml(f.label||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;" onchange="wdSecFields['+i+'].label=this.value"/>'+
+        '<input placeholder="Placeholder text" value="'+escHtml(f.placeholder||'')+'" style="padding:7px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:12px;outline:none;" onchange="wdSecFields['+i+'].placeholder=this.value"/>'+
+        '<button onclick="wdSecFields.splice('+i+',1);renderWdFields();" style="padding:6px 8px;background:rgba(231,76,60,0.15);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;cursor:pointer;font-size:12px;">×</button>';
+      wrap.appendChild(row);
+    });
+  }
+
+  function loadWdSectionsList() {
+    var wrap = document.getElementById('wd-sections-list');
+    wrap.innerHTML = '<div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div>';
+    fbGet('/withdrawalSections').then(function(data){
+      if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:1rem;color:#4a6ab0;">No withdrawal options yet.</div>';return;}
+      wrap.innerHTML='';
+      Object.entries(data).forEach(function(e){
+        var key=e[0],sec=e[1];
+        var row=document.createElement('div');
+        row.style.cssText='background:#060d1a;border:1px solid #1a3a7c;border-radius:10px;padding:12px;margin-bottom:8px;';
+        row.innerHTML=
+          '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">'+
+            '<div style="font-size:14px;font-weight:700;color:#fff;">'+(sec.icon||'💸')+' '+(sec.title||'')+'</div>'+
+            '<span style="background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;">ACTIVE</span>'+
+          '</div>'+
+          (sec.description?'<div style="font-size:12px;color:#4a6ab0;margin-bottom:8px;">'+escHtml(sec.description)+'</div>':'')+
+          ((sec.fields&&sec.fields.length)?'<div style="font-size:11px;color:#4a6ab0;margin-bottom:8px;">Fields: '+sec.fields.map(function(f){return f.label;}).join(', ')+'</div>':'')+
+          '<div style="display:flex;gap:6px;">'+
+            '<button onclick="deleteWdSec(''+key+'')" style="flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Delete</button>'+
+          '</div>';
+        wrap.appendChild(row);
+      });
+    });
+  }
+
+  function loadWdRequests() {
+    var wrap = document.getElementById('wd-requests-list');
+    wrap.innerHTML='<div style="text-align:center;padding:0.5rem;color:#4a6ab0;font-size:12px;">Loading...</div>';
+    fbGet('/withdrawalRequests').then(function(data){
+      if(!data||!Object.keys(data).length){wrap.innerHTML='<div style="text-align:center;padding:0.5rem;color:#4a6ab0;font-size:12px;">No withdrawal requests.</div>';return;}
+      var entries=Object.entries(data).filter(function(e){return e[1].status==='pending';});
+      if(!entries.length){wrap.innerHTML='<div style="text-align:center;padding:0.5rem;color:#4ade80;font-size:12px;">No pending requests.</div>';return;}
+      wrap.innerHTML='';
+      entries.forEach(function(e){
+        var key=e[0],req=e[1];
+        var row=document.createElement('div');
+        row.style.cssText='background:#060d1a;border:1px solid #2255b8;border-radius:8px;padding:10px;margin-bottom:6px;';
+        var fieldsHtml='';
+        if(req.fields)Object.entries(req.fields).forEach(function(f){
+          fieldsHtml+='<div style="font-size:11px;color:#4a6ab0;">'+f[0]+': <strong style="color:#e0e8ff;">'+f[1]+'</strong></div>';
+        });
+        row.innerHTML=
+          '<div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:6px;">'+
+            '<div>'+
+              '<div style="font-size:13px;font-weight:700;color:#fff;">'+(req.playerName||'Unknown')+' — Rs.'+Number(req.amount||0).toLocaleString('en-NP')+'</div>'+
+              '<div style="font-size:11px;color:#4a6ab0;">'+(req.section||'')+' · '+new Date(req.time).toLocaleString()+'</div>'+
+              fieldsHtml+
+            '</div>'+
+          '</div>'+
+          '<div style="display:flex;gap:6px;">'+
+            '<button onclick="approveWdReq(''+key+'',''+req.playerKey+'','+req.amount+')" style="flex:1;padding:6px;background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Approve</button>'+
+            '<button onclick="rejectWdReq(''+key+'',''+req.playerKey+'')" style="flex:1;padding:6px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px solid rgba(231,76,60,0.3);border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Reject</button>'+
+          '</div>';
+        wrap.appendChild(row);
+      });
+    });
+  }
+
+  window.approveWdReq=function(key,playerKey,amount){
+    if(!confirm('Approve withdrawal of Rs.'+Number(amount).toLocaleString('en-NP')+'?'))return;
+    fbUpdate('/withdrawalRequests/'+key,{status:'approved',settledAt:new Date().toISOString()}).then(function(){
+      return fbGet('/players/'+playerKey);
+    }).then(function(player){
+      if(!player)return;
+      var newBal=Math.max(0,(Number(player.balance)||0)-amount);
+      return fbUpdate('/players/'+playerKey,{balance:newBal}).then(function(){
+        return fbPush('/notifications/'+playerKey,{msg:'Withdrawal of Rs.'+Number(amount).toLocaleString('en-NP')+' approved and processed.',type:'withdrawal',time:new Date().toISOString(),read:false});
+      });
+    }).then(function(){alert('Approved!');loadWdRequests();}).catch(function(e){alert('Error: '+e.message);});
+  };
+  window.rejectWdReq=function(key,playerKey){
+    if(!confirm('Reject this withdrawal?'))return;
+    fbUpdate('/withdrawalRequests/'+key,{status:'rejected',settledAt:new Date().toISOString()}).then(function(){
+      return fbPush('/notifications/'+playerKey,{msg:'Your withdrawal request was rejected. Contact support for details.',type:'rejected',time:new Date().toISOString(),read:false});
+    }).then(function(){alert('Rejected.');loadWdRequests();}).catch(function(e){alert('Error: '+e.message);});
+  };
+  window.deleteWdSec=function(key){
+    if(!confirm('Delete this withdrawal option?'))return;
+    fetch(FB+'/withdrawalSections/'+key+'.json',{method:'DELETE'}).then(function(){loadWdSectionsList();});
+  };
+
+  document.getElementById('wd-sec-save').addEventListener('click',function(){
+    var title=(document.getElementById('wd-sec-title').value||'').trim();
+    var icon=(document.getElementById('wd-sec-icon').value||'').trim()||'💸';
+    var desc=(document.getElementById('wd-sec-desc').value||'').trim();
+    var errEl=document.getElementById('wd-sec-err'); errEl.style.display='none';
+    if(!title){errEl.textContent='Title is required.';errEl.style.display='block';return;}
+    var fieldInputs=document.getElementById('wd-sec-fields').querySelectorAll('input');
+    var fields=[];
+    for(var i=0;i<wdSecFields.length;i++){
+      fields.push({label:fieldInputs[i*2]?fieldInputs[i*2].value:'',placeholder:fieldInputs[i*2+1]?fieldInputs[i*2+1].value:''});
+    }
+    var data={title:title,icon:icon,description:desc,fields:fields.filter(function(f){return f.label;}),active:true,createdAt:new Date().toISOString()};
+    var btn=document.getElementById('wd-sec-save'); btn.textContent='Saving...'; btn.disabled=true;
+    fbPush('/withdrawalSections',data).then(function(){
+      btn.textContent='Add Option'; btn.disabled=false;
+      ['wd-sec-title','wd-sec-icon','wd-sec-desc'].forEach(function(id){document.getElementById(id).value='';});
+      wdSecFields=[]; renderWdFields(); loadWdSectionsList();
+    }).catch(function(e){errEl.textContent='Error: '+e.message;errEl.style.display='block';btn.textContent='Add Option';btn.disabled=false;});
+  });
+
+  // Wire buttons
+  document.getElementById('dep-sections-btn').addEventListener('click', openDepSections);
+  document.getElementById('dep-sections-close').addEventListener('click', function(){document.getElementById('modal-dep-sections').classList.remove('open');});
+  document.getElementById('wd-sections-btn').addEventListener('click', openWdSections);
+  document.getElementById('wd-sections-close').addEventListener('click', function(){document.getElementById('modal-wd-sections').classList.remove('open');});
+
+  // Add to click-outside handler
+
+      ['modal-new-agent','modal-topup','modal-txns','modal-report','modal-agentweb','modal-pending','modal-players','modal-player-detail','modal-sendmsg','modal-issues','modal-sportbets','modal-sportevents','modal-contacts','modal-dep-sections','modal-wd-sections'].forEach(function(id) {
       if (e.target===document.getElementById(id)) document.getElementById(id).classList.remove('open');
     });
   });
@@ -2145,5 +2427,91 @@
 
 })();
 </script>
+
+<!-- DEPOSIT SECTIONS MODAL -->
+<div class="overlay" id="modal-dep-sections">
+  <div class="modal" style="max-width:620px;">
+    <button class="mclose" id="dep-sections-close">✕</button>
+    <div class="modal-title">Deposit Options</div>
+    <div class="modal-sub">Manage deposit sections shown to players</div>
+    <!-- Add New Section Form -->
+    <div style="background:#060d1a;border:1px solid #1a3a7c;border-radius:12px;padding:1rem;margin-bottom:1rem;">
+      <div style="font-size:13px;font-weight:700;color:#7eb3ff;margin-bottom:10px;" id="dep-sec-form-title">Add New Deposit Section</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Title *</label>
+          <input type="text" id="dep-sec-title" placeholder="e.g. eSewa, Khalti, Bank Transfer" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+        <div><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Icon (emoji)</label>
+          <input type="text" id="dep-sec-icon" placeholder="💰" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+      </div>
+      <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Description</label>
+        <input type="text" id="dep-sec-desc" placeholder="Instructions for players" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+      <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">QR Code Image URL (optional)</label>
+        <input type="text" id="dep-sec-qr" placeholder="https://i.imgur.com/yourqr.png" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/>
+        <div style="font-size:10px;color:#4a6ab0;margin-top:3px;">Upload image to imgur.com or imgbb.com (free) and paste the link here</div></div>
+      <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Proof Label (what player submits)</label>
+        <input type="text" id="dep-sec-proof-label" placeholder="Transaction ID / Screenshot" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+      <!-- Options (crypto addresses / account numbers) -->
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:11px;color:#4a6ab0;text-transform:uppercase;letter-spacing:0.5px;">Options (addresses/accounts)</label>
+          <button onclick="addDepOption()" style="padding:3px 10px;background:rgba(126,179,255,0.15);color:#7eb3ff;border:1px solid rgba(126,179,255,0.3);border-radius:6px;font-size:11px;cursor:pointer;">+ Add</button>
+        </div>
+        <div id="dep-sec-options"></div>
+      </div>
+      <!-- Link buttons -->
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:11px;color:#4a6ab0;text-transform:uppercase;letter-spacing:0.5px;">Link Buttons (eSewa/Khalti apps)</label>
+          <button onclick="addDepLink()" style="padding:3px 10px;background:rgba(126,179,255,0.15);color:#7eb3ff;border:1px solid rgba(126,179,255,0.3);border-radius:6px;font-size:11px;cursor:pointer;">+ Add</button>
+        </div>
+        <div id="dep-sec-links"></div>
+      </div>
+      <div class="merr" id="dep-sec-err"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-submit" id="dep-sec-save" style="flex:1;">Add Section</button>
+        <button id="dep-sec-cancel" style="padding:10px 16px;background:#060d1a;color:#4a6ab0;border:1px solid #1a3a7c;border-radius:8px;font-size:13px;cursor:pointer;display:none;">Cancel</button>
+      </div>
+    </div>
+    <div id="dep-sections-list"><div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div></div>
+  </div>
+</div>
+
+<!-- WITHDRAWAL SECTIONS MODAL -->
+<div class="overlay" id="modal-wd-sections">
+  <div class="modal" style="max-width:620px;">
+    <button class="mclose" id="wd-sections-close">✕</button>
+    <div class="modal-title">Withdrawal Options</div>
+    <div class="modal-sub">Manage withdrawal methods shown to players</div>
+    <div style="background:#060d1a;border:1px solid #1a3a7c;border-radius:12px;padding:1rem;margin-bottom:1rem;">
+      <div style="font-size:13px;font-weight:700;color:#7eb3ff;margin-bottom:10px;" id="wd-sec-form-title">Add New Withdrawal Option</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+        <div><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Title *</label>
+          <input type="text" id="wd-sec-title" placeholder="e.g. Bank Transfer, eSewa" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+        <div><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Icon (emoji)</label>
+          <input type="text" id="wd-sec-icon" placeholder="💸" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+      </div>
+      <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Description</label>
+        <input type="text" id="wd-sec-desc" placeholder="Instructions for players" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+      <!-- Custom fields player must fill -->
+      <div style="margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label style="font-size:11px;color:#4a6ab0;text-transform:uppercase;letter-spacing:0.5px;">Fields Player Must Fill</label>
+          <button onclick="addWdField()" style="padding:3px 10px;background:rgba(126,179,255,0.15);color:#7eb3ff;border:1px solid rgba(126,179,255,0.3);border-radius:6px;font-size:11px;cursor:pointer;">+ Add Field</button>
+        </div>
+        <div id="wd-sec-fields"></div>
+      </div>
+      <div class="merr" id="wd-sec-err"></div>
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-submit" id="wd-sec-save" style="flex:1;">Add Option</button>
+        <button id="wd-sec-cancel" style="padding:10px 16px;background:#060d1a;color:#4a6ab0;border:1px solid #1a3a7c;border-radius:8px;font-size:13px;cursor:pointer;display:none;">Cancel</button>
+      </div>
+    </div>
+    <!-- Withdrawal requests list -->
+    <div style="font-size:13px;font-weight:700;color:#7eb3ff;margin-bottom:8px;">Pending Withdrawal Requests</div>
+    <div id="wd-requests-list"><div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div></div>
+    <div style="font-size:13px;font-weight:700;color:#7eb3ff;margin:12px 0 8px;">Withdrawal Options</div>
+    <div id="wd-sections-list"><div style="text-align:center;padding:1rem;color:#4a6ab0;">Loading...</div></div>
+  </div>
+</div>
 </body>
 </html>
