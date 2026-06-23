@@ -1148,25 +1148,54 @@
       updatePendingBadge(pending.length);
       var filtered = pdFilter==='all' ? all : all.filter(function(d){ return d.status===pdFilter; });
       if (!filtered.length) { wrap.innerHTML='<div style="text-align:center;padding:2rem;color:#4a6ab0;">No '+pdFilter+' deposits.</div>'; return; }
+      wrap._txMap = {};
       wrap.innerHTML = filtered.map(function(d) {
         var isAgent = d._type==='agent';
         var who = isAgent ? ('Agent: '+(d.agentName||d.agentId)+' <span style="color:#7eb3ff;font-size:11px;">[AGENT]</span>') : ('Player: '+(d.playerName||d.playerUid)+' <span style="color:#4ade80;font-size:11px;">[PLAYER]</span>');
         var explorerUrl = getExplorerUrl(d.coin, d.txHash);
-        return '<div class="dep-req">' +
-          '<div class="dep-req-top">' +
-            '<div><div class="dep-req-agent">'+who+'</div><div class="dep-req-time">'+new Date(d.time).toLocaleString()+'</div></div>' +
-            '<div style="text-align:right;"><div class="dep-req-amount">Rs. '+Number(d.amount).toLocaleString('en-NP')+'</div>' +
-            '<div class="dep-req-coin">'+d.coin+' ('+d.symbol+')</div>' +
-            '<span class="dep-badge-'+d.status+'">'+d.status.toUpperCase()+'</span></div>' +
+        var txDisplay = (d.txHash||d.proof||'—');
+        var txShort = txDisplay.length>24 ? txDisplay.slice(0,12)+'...'+txDisplay.slice(-8) : txDisplay;
+        var sectionInfo = d.section ? ('<span style="background:rgba(126,179,255,0.1);color:#7eb3ff;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">'+d.section+'</span>') : '';
+        var networkInfo = d.network ? ('<span style="background:rgba(74,222,128,0.1);color:#4ade80;padding:2px 8px;border-radius:20px;font-size:10px;font-weight:700;">'+d.network+'</span>') : '';
+        return '<div class="dep-req" style="border:1px solid #1a3a7c;border-radius:12px;padding:14px;margin-bottom:10px;background:#060d1a;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">' +
+            '<div>' +
+              '<div style="font-size:13px;font-weight:700;color:#e0e8ff;margin-bottom:4px;">'+who+'</div>' +
+              '<div style="font-size:11px;color:#4a6ab0;">'+new Date(d.time).toLocaleString()+'</div>' +
+            '</div>' +
+            '<div style="text-align:right;">'+sectionInfo+' '+networkInfo+'<br/>' +
+              '<span class="dep-badge-'+d.status+'" style="display:inline-block;margin-top:4px;">'+d.status.toUpperCase()+'</span>' +
+            '</div>' +
           '</div>' +
-          '<div class="dep-req-hash">TX: <a href="'+explorerUrl+'" target="_blank" style="color:#7eb3ff;">'+d.txHash+'</a><br/><span style="color:#4a6ab0;font-size:10px;">Click to verify ↗</span></div>' +
+          '<div style="background:#0a1525;border:1px solid #1a3a7c;border-radius:8px;padding:10px;margin-bottom:10px;">' +
+            '<div style="font-size:10px;color:#4a6ab0;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;">Transaction Hash / TX ID</div>' +
+            '<div style="font-family:monospace;font-size:12px;color:#7eb3ff;word-break:break-all;margin-bottom:6px;">'+txDisplay+'</div>' +
+            '<button class="copy-tx-btn" style="padding:3px 10px;background:rgba(126,179,255,0.1);color:#7eb3ff;border:1px solid rgba(126,179,255,0.3);border-radius:6px;font-size:10px;cursor:pointer;margin-right:6px;">Copy Hash</button>' +
+            (explorerUrl&&explorerUrl!=='#'?'<a href="'+explorerUrl+'" target="_blank" style="padding:3px 10px;background:rgba(74,222,128,0.1);color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:6px;font-size:10px;text-decoration:none;">Verify on Explorer ↗</a>':'') +
+          '</div>' +
           (d.status==='pending' ?
-            '<div class="dep-req-btns">' +
-              '<button class="btn-approve" data-key="'+d._key+'" data-amt="'+d.amount+'" data-id="'+(isAgent?d.agentId:d.playerKey)+'" data-type="'+d._type+'">Approve & Add Balance</button>' +
-              '<button class="btn-reject" data-key="'+d._key+'" data-type="'+d._type+'">✕ Reject</button>' +
-            '</div>' : '') +
+            '<div style="background:#0a1525;border:1px solid rgba(246,201,0,0.3);border-radius:8px;padding:10px;margin-bottom:10px;">' +
+              '<div style="font-size:11px;font-weight:700;color:#f6c90e;margin-bottom:8px;">⚡ Set Credit Amount (Rs.)</div>' +
+              '<div style="font-size:11px;color:#4a6ab0;margin-bottom:8px;">Check the TX hash above → calculate exchange rate → enter NPR amount to credit:</div>' +
+              '<div style="display:flex;gap:8px;align-items:center;">' +
+                '<input type="number" id="dep-amt-'+d._key+'" placeholder="Enter Rs. amount to credit" style="flex:1;padding:8px 12px;border-radius:8px;border:1px solid rgba(246,201,0,0.4);background:#050a18;color:#f6c90e;font-size:14px;font-weight:700;outline:none;"/>' +
+                '<div style="font-size:12px;color:#4a6ab0;white-space:nowrap;">NPR</div>' +
+              '</div>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;">' +
+              '<button class="btn-approve" data-key="'+d._key+'" data-id="'+(isAgent?d.agentId:d.playerKey)+'" data-type="'+d._type+'" style="flex:1;" onclick="approveDepWithAmt(this)">✓ Approve & Credit</button>' +
+              '<button class="btn-reject" data-key="'+d._key+'" data-type="'+d._type+'" style="flex:0.4;">✕ Reject</button>' +
+            '</div>'
+            : (d.creditedAmount ? '<div style="font-size:12px;color:#4ade80;margin-top:4px;">Credited: Rs. '+Number(d.creditedAmount).toLocaleString('en-NP')+'</div>' : '')
+          ) +
         '</div>';
       }).join('');
+      // Wire copy buttons
+      wrap.querySelectorAll('.copy-tx-btn').forEach(function(btn, i){
+        var dep = filtered[i];
+        if(dep) btn.onclick = function(){navigator.clipboard.writeText(dep.txHash||dep.proof||'').then(function(){btn.textContent='Copied!';setTimeout(function(){btn.textContent='Copy Hash';},2000);});};
+      });
+
       wrap.querySelectorAll('.btn-approve').forEach(function(btn){
         btn.addEventListener('click',function(){ approveDeposit(btn.dataset.key, parseFloat(btn.dataset.amt), btn.dataset.id, btn.dataset.type); });
       });
@@ -2688,6 +2717,41 @@
         alert('Cleaned '+toDelete.length+' duplicate(s)!');
         _depListLoading=false;loadDepList();
       });
+    });
+  };
+
+  window.approveDepWithAmt = function(btn) {
+    var key = btn.dataset.key;
+    var playerKey = btn.dataset.id;
+    var type = btn.dataset.type;
+    var amtEl = document.getElementById('dep-amt-'+key);
+    var amt = parseFloat(amtEl ? amtEl.value : 0);
+    if(!amt || amt < 1) { alert('Please enter the Rs. amount to credit first.'); return; }
+    if(!confirm('Credit Rs. '+amt.toLocaleString('en-NP')+' to player '+playerKey+'?')) return;
+    btn.textContent = 'Processing...'; btn.disabled = true;
+    // Get current balance
+    fbGet('/players/'+playerKey).then(function(pl) {
+      if(!pl) throw new Error('Player not found: '+playerKey);
+      var newBal = (Number(pl.balance)||0) + amt;
+      return fbUpdate('/players/'+playerKey, {balance: newBal})
+        .then(function(){
+          return fbUpdate('/playerCryptoDeposits/'+key, {
+            status:'approved', creditedAmount:amt,
+            approvedAt:new Date().toISOString()
+          });
+        })
+        .then(function(){
+          return fbPush('/notifications/'+playerKey, {
+            msg:'Deposit approved! Rs. '+amt.toLocaleString('en-NP')+' added to your balance.',
+            type:'deposit', time:new Date().toISOString(), read:false
+          });
+        });
+    }).then(function(){
+      alert('✓ Rs. '+amt.toLocaleString('en-NP')+' credited to player!');
+      loadDepositReqs();
+    }).catch(function(e){
+      alert('Error: '+e.message);
+      btn.textContent='✓ Approve & Credit'; btn.disabled=false;
     });
   };
 
