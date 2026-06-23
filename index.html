@@ -2351,7 +2351,7 @@
 
   function openDepSections(){
     document.getElementById('modal-dep-sections').classList.add('open');
-    ['dep-sec-title','dep-sec-icon','dep-sec-desc','dep-sec-qr',
+    ['dep-sec-title','dep-sec-icon','dep-sec-badge','dep-sec-desc','dep-sec-qr',
      'dep-crypto-address','dep-crypto-network','dep-crypto-min','dep-crypto-warning',
      'dep-ewallet-account','dep-ewallet-name']
       .forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
@@ -2417,6 +2417,7 @@
     var catEl=document.getElementById('dep-sec-category');
     var category=catEl?catEl.value:'Crypto';
     var isCrypto=category==='Crypto';
+    var badge=(document.getElementById('dep-sec-badge')?document.getElementById('dep-sec-badge').value||'':'').trim();
     var address=(document.getElementById('dep-crypto-address')?document.getElementById('dep-crypto-address').value||'':'').trim();
     var network=(document.getElementById('dep-crypto-network')?document.getElementById('dep-crypto-network').value||'':'').trim();
     var minAmt=(document.getElementById('dep-crypto-min')?document.getElementById('dep-crypto-min').value||'':'').trim();
@@ -2441,7 +2442,7 @@
         warningMsg:warning||( isCrypto?'Only send '+title+' on the '+network+' network. Sending on wrong network = permanent loss of funds.':''),
         ewalletAccount:ewAccount,ewalletName:ewName,
         options:isCrypto&&address?[{label:title,sub:network,address:address}]:[],
-        active:true,createdAt:new Date().toISOString()
+        badge:badge,active:true,createdAt:new Date().toISOString()
       };
       return fetch(FB+'/depositSections.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     }).then(function(res){
@@ -2723,7 +2724,7 @@
     <div style="background:#060d1a;border:1px solid #1a3a7c;border-radius:12px;padding:1rem;margin-bottom:1rem;">
       <div style="font-size:13px;font-weight:700;color:#7eb3ff;margin-bottom:12px;">Add New Deposit Method</div>
 
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:8px;margin-bottom:8px;">
         <div>
           <label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Method Name *</label>
           <input type="text" id="dep-sec-title" placeholder="e.g. USDT TRC20, eSewa, Khalti" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;box-sizing:border-box;"/>
@@ -2731,8 +2732,13 @@
         <div>
           <label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Icon — emoji or image URL</label>
           <input type="text" id="dep-sec-icon" placeholder="💰 or https://i.imgur.com/logo.png" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;box-sizing:border-box;"/>
-          <div style="font-size:10px;color:#4a6ab0;margin-top:3px;">Design logo → upload to imgur.com → paste URL here</div>
+          <div style="font-size:10px;color:#4a6ab0;margin-top:3px;">Upload to imgur.com → paste URL</div>
           <div id="dep-icon-preview" style="margin-top:6px;display:none;text-align:center;"></div>
+        </div>
+        <div>
+          <label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Badge</label>
+          <input type="text" id="dep-sec-badge" placeholder="+10%" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;box-sizing:border-box;"/>
+          <div style="font-size:10px;color:#4a6ab0;margin-top:3px;">Optional red badge</div>
         </div>
       </div>
 
