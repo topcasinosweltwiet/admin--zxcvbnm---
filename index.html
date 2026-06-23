@@ -2753,7 +2753,7 @@
         });
     }).then(function(){
       alert('✓ Rs. '+amt.toLocaleString('en-NP')+' credited to player!');
-      loadDepositReqs();
+      loadPendingDeposits();
     }).catch(function(e){
       alert('Error: '+e.message);
       btn.textContent='✓ Approve & Credit'; btn.disabled=false;
