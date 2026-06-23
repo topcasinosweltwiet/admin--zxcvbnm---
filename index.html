@@ -2417,7 +2417,9 @@
           }
         }
       }
-      var data={title:title,icon:icon,description:desc,qrImageUrl:qr,proofLabel:proof,
+      var catEl=document.getElementById('dep-sec-category');
+      var category=catEl?catEl.value:'E-Wallets';
+      var data={title:title,icon:icon,category:category,description:desc,qrImageUrl:qr,proofLabel:proof,
         options:_depOptions.filter(function(o){return(o.label||'').trim();}),
         links:_depLinks.filter(function(l){return l.label&&l.url;}),
         active:true,createdAt:new Date().toISOString()};
@@ -2527,7 +2529,9 @@
           return Promise.resolve(null);
         }
       }
-      var data={title:title,icon:icon,description:desc,fields:_wdFields.filter(function(f){return f.label;}),active:true,createdAt:new Date().toISOString()};
+      var wdCatEl=document.getElementById('wd-sec-category');
+    var wdCategory=wdCatEl?wdCatEl.value:'E-Wallets';
+    var data={title:title,icon:icon,category:wdCategory,description:desc,fields:_wdFields.filter(function(f){return f.label;}),active:true,createdAt:new Date().toISOString()};
       return fetch(FB+'/withdrawalSections.json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     }).then(function(res){
       if(!res)return;
@@ -2702,10 +2706,17 @@
       <div style="font-size:13px;font-weight:700;color:#7eb3ff;margin-bottom:10px;" id="dep-sec-form-title">Add New Deposit Section</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
         <div><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Title *</label>
-          <input type="text" id="dep-sec-title" placeholder="e.g. eSewa, Khalti, Bank Transfer" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+          <input type="text" id="dep-sec-title" placeholder="e.g. eSewa, Khalti, USDT" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
         <div><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Icon (emoji)</label>
           <input type="text" id="dep-sec-icon" placeholder="💰" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
       </div>
+      <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Category</label>
+        <select id="dep-sec-category" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;">
+          <option value="E-Wallets">E-Wallets (eSewa, Khalti, etc)</option>
+          <option value="Crypto">Crypto (USDT, BTC, ETH, etc)</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="Other">Other</option>
+        </select></div>
       <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Description</label>
         <input type="text" id="dep-sec-desc" placeholder="Instructions for players" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
       <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">QR Code Image URL (optional)</label>
@@ -2752,10 +2763,17 @@
       <div style="font-size:13px;font-weight:700;color:#7eb3ff;margin-bottom:10px;" id="wd-sec-form-title">Add New Withdrawal Option</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
         <div><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Title *</label>
-          <input type="text" id="wd-sec-title" placeholder="e.g. Bank Transfer, eSewa" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
+          <input type="text" id="wd-sec-title" placeholder="e.g. eSewa, USDT, Bank" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
         <div><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Icon (emoji)</label>
           <input type="text" id="wd-sec-icon" placeholder="💸" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
       </div>
+      <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Category</label>
+        <select id="wd-sec-category" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;">
+          <option value="E-Wallets">E-Wallets (eSewa, Khalti, etc)</option>
+          <option value="Crypto">Crypto (USDT, BTC, ETH, etc)</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="Other">Other</option>
+        </select></div>
       <div style="margin-bottom:8px;"><label style="font-size:11px;color:#4a6ab0;display:block;margin-bottom:4px;">Description</label>
         <input type="text" id="wd-sec-desc" placeholder="Instructions for players" style="width:100%;padding:8px;border-radius:6px;border:1px solid #1a3a7c;background:#0a1525;color:#e0e8ff;font-size:13px;outline:none;"/></div>
       <!-- Custom fields player must fill -->
