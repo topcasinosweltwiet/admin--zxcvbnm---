@@ -1467,7 +1467,12 @@
 
       // ── Stats ──
       html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:1rem;">';
-      html += '<div class="stat-card"><div class="sv">Rs.'+Number(p.balance||0).toLocaleString('en-NP')+'</div><div class="sl">Balance</div></div>';
+      html += '<div class="stat-card"><div class="sv">Rs.'+Number(p.balance||0).toLocaleString('en-NP')+'</div><div class="sl">Balance</div>'+
+        '<div style="display:flex;gap:4px;margin-top:6px;">'+
+          '<button onclick="manualAddBalance(\'' + key + '\')" style="flex:1;padding:4px;background:rgba(74,222,128,0.15);color:#4ade80;border:1px solid rgba(74,222,128,0.3);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;">+ Add</button>'+
+          '<button onclick="manualSetBalance(\'' + key + '\')" style="flex:1;padding:4px;background:rgba(126,179,255,0.1);color:#7eb3ff;border:1px solid rgba(126,179,255,0.3);border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;">Set</button>'+
+        '</div>'+
+      '</div>';
       html += '<div class="stat-card"><div class="sv" style="color:#4ade80;">Rs.'+Number(totalDep).toLocaleString('en-NP')+'</div><div class="sl">Deposited</div></div>';
       html += '<div class="stat-card"><div class="sv" style="color:#e67e22;">Rs.'+Number(totalWd).toLocaleString('en-NP')+'</div><div class="sl">Withdrawn</div></div>';
       html += '</div>';
@@ -1523,8 +1528,8 @@
       if (cryptoList.length) {
         html += cryptoList.map(function(d){
           return '<div style="background:#060d1a;border-radius:8px;padding:8px 12px;margin-bottom:6px;display:flex;justify-content:space-between;font-size:12px;">'+
-            '<span style="color:#c8d4f0;">'+new Date(d.time).toLocaleString()+'<br/><span style="color:#4a6ab0;">'+d.coin+' ('+d.symbol+')</span></span>'+
-            '<span style="color:'+(d.status==='approved'?'#4ade80':d.status==='pending'?'#f6c90e':'#e74c3c')+';font-weight:700;">'+d.status.toUpperCase()+' Rs.'+Number(d.amount||0).toLocaleString('en-NP')+'</span></div>';
+            '<span style="color:#c8d4f0;">'+new Date(d.time).toLocaleString()+'<br/><span style="color:#4a6ab0;">'+(d.section||d.category||'Deposit')+'</span></span>'+
+            '<span style="color:'+(d.status==='approved'?'#4ade80':d.status==='pending'?'#f6c90e':'#e74c3c')+';font-weight:700;">'+d.status.toUpperCase()+(d.creditedAmount?' Rs.'+Number(d.creditedAmount).toLocaleString('en-NP'):'')+'</span></div>';
         }).join('');
       } else html += '<div style="color:#4a6ab0;font-size:13px;margin-bottom:1rem;">No crypto deposits.</div>';
 
@@ -2753,6 +2758,36 @@
       alert('Error: '+e.message);
       btn.textContent='✓ Approve & Credit'; btn.disabled=false;
     });
+  };
+
+  window.manualAddBalance = function(playerKey) {
+    var amt = parseFloat(prompt('Add how much Rs. to player balance?', ''));
+    if(!amt || isNaN(amt) || amt <= 0) return;
+    fbGet('/players/'+playerKey).then(function(pl){
+      if(!pl) { alert('Player not found'); return; }
+      var newBal = (Number(pl.balance)||0) + amt;
+      return fbUpdate('/players/'+playerKey, {balance: newBal})
+        .then(function(){
+          return fbPush('/notifications/'+playerKey, {
+            msg:'Rs. '+amt.toLocaleString('en-NP')+' has been added to your balance by admin.',
+            type:'deposit', time:new Date().toISOString(), read:false
+          });
+        });
+    }).then(function(){
+      alert('✓ Rs. '+amt+' added!');
+      viewPlayerDetail(playerKey);
+    }).catch(function(e){ alert('Error: '+e.message); });
+  };
+
+  window.manualSetBalance = function(playerKey) {
+    var amt = parseFloat(prompt('Set player balance to exactly Rs.:', ''));
+    if(amt === null || isNaN(amt) || amt < 0) return;
+    if(!confirm('Set balance to Rs. '+amt+'? This REPLACES current balance.')) return;
+    fbUpdate('/players/'+playerKey, {balance: amt})
+      .then(function(){
+        alert('✓ Balance set to Rs. '+amt);
+        viewPlayerDetail(playerKey);
+      }).catch(function(e){ alert('Error: '+e.message); });
   };
 
   // Wire deposit/withdrawal modal buttons (ONCE)
